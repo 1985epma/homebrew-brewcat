@@ -10,6 +10,14 @@ from typing import List, Tuple
 DEV = "dev"
 GAMER = "gamer"
 SRE = "sre"
+QA = "qa"
+OFFICE = "office"
+DESIGN = "design"
+DJ = "dj"
+DS = "datascience"
+DE = "dataeng"
+NET = "network"
+SEC = "security"
 MAC = "mac"
 LINUX = "linux"
 BOTH = (MAC, LINUX)
@@ -615,6 +623,451 @@ KITS.extend([
          "formula:raylib", "formula:sdl3")),
 ])
 
+# ───────────────────── More professional profiles ─────────────────────
+# QA
+C_QA_AUTO = "Test Automation"
+formula(C_QA_AUTO, [
+    ("selenium-server", "Selenium Server / Grid for browser automation", "qa selenium"),
+    ("geckodriver", "WebDriver proxy for Firefox", "qa selenium"),
+    ("appium", "Mobile app automation (iOS/Android)", "qa mobile"),
+    ("newman", "Run Postman collections from the CLI", "qa api"),
+    ("hurl", "Run and test HTTP requests defined in plain text", "qa api http"),
+    ("pytest", "Python testing framework", "qa python"),
+    ("robot-framework", "Generic keyword-driven test automation framework", "qa python"),
+    ("lighthouse", "Audit performance, accessibility and SEO", "qa web"),
+    ("sonar-scanner", "SonarQube/SonarCloud code quality scanner", "qa lint"),
+], profiles=(QA,))
+cask(C_QA_AUTO, [
+    ("chromedriver", "WebDriver for Chrome", "qa selenium"),
+    ("maestro", "Simple UI testing for mobile and web", "qa mobile"),
+    ("android-studio", "Android IDE and emulators", "qa mobile"),
+    ("google-chrome", "Chrome browser for testing", "qa web"),
+    ("firefox", "Firefox browser for testing", "qa web"),
+    ("responsively", "Preview a site on many device sizes at once", "qa web design"),
+    ("browserstacklocal", "BrowserStack Local testing tunnel", "qa web"),
+], profiles=(QA,))
+C_QA_PERF = "Load & API Testing"
+formula(C_QA_PERF, [
+    ("k6", "Modern load testing tool", "qa loadtest sre"),
+    ("jmeter", "Apache JMeter load and functional testing", "qa loadtest"),
+    ("locust", "Scalable load testing in Python", "qa loadtest python"),
+    ("allure", "Test report framework", "qa report"),
+    ("httpie", "User-friendly HTTP client for testing APIs", "api http"),
+], profiles=(QA,))
+cask(C_QA_PERF, [
+    ("postman", "Platform to build and test APIs", "api http"),
+    ("bruno", "Open-source, offline-first API client", "api http"),
+    ("insomnia", "REST/GraphQL/gRPC client", "api http"),
+    ("charles", "HTTP proxy and monitor", "qa api http"),
+    ("mitmproxy", "Inspect and modify HTTP(S) traffic", "api http security"),
+], profiles=(QA,))
+
+# Office
+C_OFFICE = "Office & Productivity"
+cask(C_OFFICE, [
+    ("libreoffice", "Full open-source office suite", "office docs"),
+    ("onlyoffice", "Office suite compatible with Microsoft formats", "office docs"),
+    ("microsoft-office", "Microsoft 365 apps (Word, Excel, PowerPoint)", "office docs"),
+    ("notion", "Notes, docs and databases in one place", "office notes"),
+    ("obsidian", "Markdown notes with links between documents", "office notes"),
+    ("zotero", "Reference manager for research", "office research"),
+    ("xmind", "Mind mapping", "office notes"),
+    ("drawio", "Diagrams and flowcharts", "office diagrams"),
+    ("calibre", "E-book manager and converter", "office docs"),
+    ("typora", "Minimal Markdown editor", "office docs"),
+    ("thunderbird", "Email client", "office mail"),
+    ("raycast", "Extensible launcher with snippets and automations", "productivity"),
+    ("alfred", "Launcher and workflow automation", "productivity"),
+    ("rectangle", "Window manager driven by shortcuts", "productivity"),
+    ("maccy", "Lightweight clipboard history", "productivity"),
+    ("numi", "Calculator that understands text", "productivity"),
+    ("keka", "Archive manager (zip, 7z, rar…)", "productivity"),
+    ("the-unarchiver", "Open almost any archive format", "productivity"),
+    ("skim", "PDF reader and note-taker", "office pdf"),
+    ("pdfsam-basic", "Split, merge and rotate PDFs", "office pdf"),
+], profiles=(OFFICE,))
+cask("Communication & Cloud Drive", [
+    ("slack", "Team messaging", "office chat"),
+    ("zoom", "Video meetings", "office chat"),
+    ("microsoft-teams", "Microsoft Teams", "office chat"),
+    ("telegram", "Telegram messenger", "office chat"),
+    ("whatsapp", "WhatsApp Desktop", "office chat"),
+    ("signal", "Private messenger", "office chat security"),
+    ("google-drive", "Google Drive for desktop", "office cloud"),
+    ("dropbox", "Dropbox sync", "office cloud"),
+    ("bitwarden", "Password manager", "office security"),
+], profiles=(OFFICE,))
+formula("Documents & PDF Tools", [
+    ("pandoc", "Universal document converter", "docs"),
+    ("ghostscript", "PostScript and PDF interpreter", "office pdf"),
+    ("poppler", "PDF rendering tools (pdftotext…)", "office pdf"),
+    ("qpdf", "Transform and inspect PDFs", "office pdf"),
+    ("tesseract", "OCR engine", "office ocr"),
+    ("ocrmypdf", "Add an OCR text layer to scanned PDFs", "office ocr pdf"),
+], profiles=(OFFICE,))
+
+# Design
+C_DWEB = "Web & UI Design"
+cask(C_DWEB, [
+    ("figma", "Collaborative interface design", "design web"),
+    ("sketch", "Digital design toolkit for Mac", "design web"),
+    ("lunacy", "Free Sketch-compatible design tool", "design web"),
+    ("zeplin", "Design handoff for developers", "design web"),
+    ("polypane", "Browser for web developers and designers", "design web"),
+    ("responsively", "Preview a site on many device sizes at once", "design web qa"),
+    ("colorsnapper", "Color picker for the menu bar", "design web"),
+    ("imageoptim", "Optimize images for the web", "design web"),
+    ("font-inter", "Inter typeface", "design font"),
+    ("font-roboto", "Roboto typeface", "design font"),
+    ("font-montserrat", "Montserrat typeface", "design font"),
+    ("font-poppins", "Poppins typeface", "design font"),
+    ("font-fira-sans", "Fira Sans typeface", "design font"),
+], profiles=(DESIGN,))
+formula(C_DWEB, [
+    ("svgo", "Optimize SVG files", "design web"),
+    ("webp", "WebP image tools (cwebp, dwebp)", "design web"),
+    ("pngquant", "Lossy PNG compressor", "design web"),
+    ("optipng", "Lossless PNG optimizer", "design web"),
+    ("jpegoptim", "JPEG optimizer", "design web"),
+    ("mozjpeg", "Better JPEG encoder", "design web"),
+    ("librsvg", "SVG rendering library and rsvg-convert", "design web"),
+], profiles=(DESIGN,))
+C_DGFX = "Graphics & Photo"
+cask(C_DGFX, [
+    ("inkscape", "Vector graphics editor", "design graphics"),
+    ("gimp", "Raster image editor", "design graphics"),
+    ("krita", "Digital painting and illustration", "design graphics"),
+    ("affinity", "Affinity Designer, Photo and Publisher", "design graphics"),
+    ("darktable", "RAW photo workflow", "design photo"),
+    ("rawtherapee", "RAW photo processing", "design photo"),
+    ("scribus", "Desktop publishing and page layout", "design print"),
+    ("xnviewmp", "Image viewer and batch converter", "design graphics"),
+    ("blender", "3D modeling, animation and rendering", "design 3d"),
+], profiles=(DESIGN,))
+formula(C_DGFX, [
+    ("imagemagick", "Image manipulation from the CLI", "media design"),
+    ("graphicsmagick", "Fast image processing toolkit", "media design"),
+    ("vips", "Very fast image processing", "media design"),
+    ("exiftool", "Read and write image metadata", "media design"),
+    ("potrace", "Trace bitmaps into vector graphics", "design graphics"),
+], profiles=(DESIGN,))
+C_DVID = "Video & Motion"
+cask(C_DVID, [
+    ("obs", "Recording and live streaming", "video streaming"),
+    ("kdenlive", "Open-source video editor", "video"),
+    ("shotcut", "Cross-platform video editor", "video"),
+    ("openshot-video-editor", "Easy-to-use video editor", "video"),
+    ("handbrake-app", "Video transcoder", "video"),
+    ("losslesscut", "Lossless video/audio trimming", "video"),
+    ("iina", "Modern media player for macOS", "video"),
+    ("vlc", "Media player that plays everything", "video"),
+    ("mediainfo", "Technical info about media files", "video"),
+    ("audacity", "Audio editor", "audio"),
+], profiles=(DESIGN,))
+formula(C_DVID, [
+    ("ffmpeg", "Convert and process audio and video", "video media"),
+    ("yt-dlp", "Download videos from YouTube and other sites", "video media"),
+    ("mkvtoolnix", "Create and edit Matroska (MKV) files", "video"),
+    ("gifski", "High-quality GIF encoder", "video"),
+    ("gifsicle", "Create and optimize GIFs", "video"),
+    ("x265", "H.265/HEVC encoder", "video"),
+    ("mpv", "Minimal, powerful media player", "video"),
+], profiles=(DESIGN,))
+
+# DJ
+C_DJ = "DJ & Music Production"
+cask(C_DJ, [
+    ("mixxx", "Free, open-source DJ software", "dj music"),
+    ("rekordbox", "Pioneer DJ library and performance software", "dj music"),
+    ("reaper", "Lightweight, powerful DAW", "dj music production"),
+    ("bitwig-studio", "DAW for live performance and production", "dj music production"),
+    ("ableton-live-lite", "Ableton Live Lite", "dj music production"),
+    ("lmms", "Open-source music production studio", "music production"),
+    ("vcv-rack", "Virtual modular synthesizer", "music production"),
+    ("sonic-pi", "Live-code music", "music production"),
+    ("ocenaudio", "Easy audio editor", "dj audio"),
+    ("audacity", "Audio editor", "dj audio"),
+    ("audio-hijack", "Record audio from any app", "dj audio"),
+    ("soundsource", "Per-app audio control and EQ", "dj audio"),
+    ("blackhole-2ch", "Virtual audio driver for routing sound", "dj audio"),
+    ("loopback", "Route audio between apps", "dj audio"),
+    ("tidal", "Hi-fi music streaming", "dj music"),
+    ("obs", "Record or stream your sets", "dj streaming"),
+], profiles=(DJ,))
+formula(C_DJ, [
+    ("sox", "Swiss-army knife of audio manipulation", "dj audio"),
+    ("lame", "MP3 encoder", "dj audio"),
+    ("flac", "Lossless audio codec", "dj audio"),
+    ("ffmpeg", "Convert and process audio and video", "dj audio media"),
+    ("yt-dlp", "Download audio and video from many sites", "dj media"),
+    ("beets", "Music library manager and tagger", "dj music"),
+    ("id3v2", "Edit ID3 tags", "dj music"),
+    ("cmus", "Console music player", "dj music"),
+    ("mpd", "Music Player Daemon", "dj music"),
+], profiles=(DJ,))
+
+# Data Scientist
+C_DS = "Data Science & ML"
+formula(C_DS, [
+    ("python@3.12", "Python 3.12", "python"),
+    ("uv", "Extremely fast Python package and project manager", "python rust"),
+    ("jupyterlab", "JupyterLab notebooks", "python notebook data"),
+    ("numpy", "Fundamental package for array computing", "python data"),
+    ("scipy", "Scientific computing library", "python data"),
+    ("micromamba", "Tiny conda-compatible package manager", "python data"),
+    ("r", "R language for statistical computing", "r data"),
+    ("julia", "High-performance language for numerical computing", "julia data"),
+    ("octave", "GNU Octave: numerical computation", "data"),
+    ("duckdb", "Embedded analytical database", "database sql data"),
+    ("graphviz", "Generate diagrams from text", "docs data"),
+    ("gnuplot", "Command-driven plotting", "data"),
+    ("ollama", "Run LLMs locally", "ai llm"),
+    ("llama.cpp", "LLM inference in C/C++", "ai llm"),
+    ("visidata", "Terminal spreadsheet for exploring data", "data cli"),
+    ("csvkit", "Tools for working with CSV", "data cli"),
+    ("qsv", "Very fast CSV toolkit", "data cli rust"),
+    ("xan", "CSV magician", "data cli rust"),
+    ("pandoc", "Universal document converter", "docs"),
+], profiles=(DS,))
+cask(C_DS, [
+    ("rstudio", "IDE for R", "r data"),
+    ("positron", "Next-generation IDE for data science", "data python r"),
+    ("miniconda", "Minimal conda installer", "python data"),
+    ("anaconda", "Anaconda data science distribution", "python data"),
+    ("quarto", "Scientific and technical publishing", "data docs"),
+    ("lm-studio", "Discover and run local LLMs", "ai llm"),
+    ("visual-studio-code", "Extensible code editor from Microsoft", "editor"),
+], profiles=(DS,))
+
+# Data Engineer
+C_DE = "Data Pipelines & Streaming"
+formula(C_DE, [
+    ("apache-spark", "Unified engine for large-scale data processing", "data spark"),
+    ("hadoop", "Distributed storage and processing", "data hadoop"),
+    ("kafka", "Distributed event streaming platform", "data kafka"),
+    ("kcat", "Kafka producer and consumer CLI", "data kafka"),
+    ("apache-flink", "Stream processing framework", "data streaming"),
+    ("trino", "Distributed SQL query engine", "data sql"),
+    ("minio", "S3-compatible object storage", "data storage"),
+    ("minio-mc", "MinIO client for S3-compatible storage", "data storage"),
+    ("rclone", "Sync files with cloud storage", "data storage"),
+    ("snowflake-cli", "Snowflake CLI", "data cloud sql"),
+    ("sqlfluff", "SQL linter and formatter", "data sql lint"),
+    ("liquibase", "Database schema change management", "data database"),
+    ("flyway", "Database migrations", "data database"),
+    ("pgloader", "Load data into PostgreSQL", "data database"),
+    ("miller", "Like awk/sed/cut for CSV, TSV and JSON", "data cli"),
+    ("duckdb", "Embedded analytical database", "database sql data"),
+    ("postgresql@16", "PostgreSQL 16 relational database", "database sql"),
+    ("mysql", "MySQL relational database", "database sql"),
+    ("redis", "In-memory key-value store", "database cache"),
+    ("sqlite", "Embedded SQL database", "database sql"),
+    ("pgcli", "PostgreSQL client with autocomplete", "database sql python"),
+    ("mycli", "MySQL client with autocomplete", "database sql python"),
+    ("mongosh", "Official MongoDB shell", "database nosql"),
+    ("awscli", "Official AWS CLI", "cloud aws"),
+    ("jq", "Command-line JSON processor", "json cli"),
+    ("yq", "YAML/JSON/XML processor", "json cli yaml"),
+], profiles=(DE,))
+cask(C_DE, [
+    ("clickhouse", "Fast open-source columnar database", "database data"),
+    ("dbeaver-community", "Universal database client", "database sql"),
+    ("datagrip", "JetBrains database IDE", "database sql"),
+    ("azure-data-studio", "Cross-platform database tool", "database sql"),
+    ("redis-insight", "GUI for Redis", "database"),
+    ("tableplus", "Modern, native database client", "database sql"),
+], profiles=(DE,))
+
+# Support & Network
+C_NETD = "Network Diagnostics"
+formula(C_NETD, [
+    ("nmap", "Network and port scanner", "network security"),
+    ("mtr", "Traceroute and ping combined", "network sre"),
+    ("iperf3", "Network throughput testing", "network sre"),
+    ("fping", "Ping many hosts at once", "network"),
+    ("tcpdump", "Packet capture on the command line", "network"),
+    ("wireshark", "Wireshark/tshark command-line tools", "network security"),
+    ("socat", "Multipurpose relay (netcat on steroids)", "network"),
+    ("netcat", "Read and write data across networks", "network"),
+    ("telnet", "Telnet client", "network"),
+    ("inetutils", "GNU network utilities (ftp, telnet, ping…)", "network"),
+    ("whois", "Look up domain registration data", "network dns"),
+    ("doggo", "Friendly DNS client", "network dns"),
+    ("ipcalc", "IP subnet calculator", "network"),
+    ("speedtest-cli", "Internet speed test from the CLI", "network"),
+    ("bandwhich", "Per-process network bandwidth monitor", "network rust"),
+    ("iftop", "Live bandwidth usage per connection", "network"),
+    ("nload", "Realtime network traffic monitor", "network"),
+    ("ngrep", "grep for network traffic", "network"),
+    ("lnav", "Log file navigator", "support logs"),
+], profiles=(NET,))
+cask(C_NETD, [
+    ("wireshark-app", "Network packet analyzer", "network security"),
+    ("angry-ip-scanner", "Fast IP and port scanner", "network"),
+], profiles=(NET,))
+C_REMOTE = "Remote Access & VPN"
+formula(C_REMOTE, [
+    ("mosh", "Mobile shell that survives roaming and sleep", "network ssh"),
+    ("autossh", "Keep SSH tunnels alive", "network ssh"),
+    ("sshpass", "Non-interactive SSH password auth", "network ssh"),
+    ("wireguard-tools", "WireGuard VPN tools", "network vpn"),
+    ("tailscale", "Zero-config VPN (CLI)", "network vpn"),
+    ("putty", "SSH and serial client", "network ssh"),
+    ("tmux", "Terminal multiplexer: sessions, windows and panes", "terminal tmux"),
+    ("rsync", "Fast, versatile file copying", "unix"),
+], profiles=(NET,))
+cask(C_REMOTE, [
+    ("termius", "SSH client with sync", "network ssh"),
+    ("royal-tsx", "Remote connections manager (RDP, SSH, VNC)", "network remote"),
+    ("windows-app", "Microsoft Windows App (remote desktop)", "network remote"),
+    ("anydesk", "Remote desktop support", "support remote"),
+    ("teamviewer", "Remote support and access", "support remote"),
+    ("rustdesk", "Open-source remote desktop", "support remote"),
+    ("tailscale-app", "Tailscale for macOS", "network vpn"),
+    ("zerotier-one", "Virtual network that just works", "network vpn"),
+    ("openvpn-connect", "OpenVPN client", "network vpn"),
+    ("cyberduck", "FTP/SFTP/S3 browser", "network"),
+    ("zoom", "Video meetings and support calls", "support"),
+    ("slack", "Team messaging", "support chat"),
+], profiles=(NET,))
+
+# Security
+C_PEN = "Pentest & Recon"
+formula(C_PEN, [
+    ("nmap", "Network and port scanner", "network security"),
+    ("masscan", "Very fast TCP port scanner", "security network"),
+    ("amass", "Attack surface mapping and asset discovery", "security recon"),
+    ("subfinder", "Passive subdomain discovery", "security recon"),
+    ("httpx", "Fast HTTP probing toolkit", "security recon"),
+    ("naabu", "Fast port scanner", "security recon"),
+    ("dnsx", "Fast DNS toolkit", "security recon"),
+    ("nuclei", "Template-based vulnerability scanner", "security scanner"),
+    ("nikto", "Web server scanner", "security scanner"),
+    ("sqlmap", "Automatic SQL injection tool", "security scanner"),
+    ("gobuster", "Directory/DNS brute-forcing", "security recon"),
+    ("ffuf", "Fast web fuzzer", "security recon"),
+    ("feroxbuster", "Fast content discovery", "security recon rust"),
+    ("hydra", "Network login cracker", "security cracking"),
+    ("hashcat", "Advanced password recovery", "security cracking"),
+    ("john-jumbo", "John the Ripper (community edition)", "security cracking"),
+    ("testssl", "Test TLS/SSL configuration", "security tls"),
+    ("sslscan", "Scan SSL/TLS servers", "security tls"),
+], profiles=(SEC,))
+cask(C_PEN, [
+    ("mitmproxy", "Inspect and modify HTTP(S) traffic", "api http security"),
+    ("burp-suite", "Web application security testing", "security web"),
+    ("zap", "OWASP ZAP web app scanner", "security web"),
+    ("metasploit", "Penetration testing framework", "security exploit"),
+    ("wireshark-app", "Network packet analyzer", "network security"),
+], profiles=(SEC,))
+C_APPSEC = "AppSec & Hardening"
+formula(C_APPSEC, [
+    ("trivy", "Vulnerability scanner for images, IaC and repos", "security containers"),
+    ("grype", "Container and filesystem vulnerability scanner", "security containers"),
+    ("syft", "Generate SBOMs from images and filesystems", "security containers"),
+    ("cosign", "Sign and verify container images", "security containers"),
+    ("semgrep", "Static analysis with custom rules", "security lint"),
+    ("bandit", "Find common security issues in Python code", "security python"),
+    ("gitleaks", "Detect secrets in git repos", "security git"),
+    ("trufflehog", "Find leaked credentials", "security git"),
+    ("checkov", "Static analysis for IaC security and compliance", "iac security lint"),
+    ("lynis", "Security auditing for Unix systems", "security audit"),
+    ("clamav", "Open-source antivirus engine", "security malware"),
+    ("yara", "Pattern matching for malware research", "security malware"),
+], profiles=(SEC,))
+C_REV = "Reverse Engineering & Forensics"
+formula(C_REV, [
+    ("radare2", "Reverse engineering framework", "security reverse"),
+    ("ghidra", "NSA software reverse engineering suite", "security reverse"),
+    ("binwalk", "Firmware analysis tool", "security reverse"),
+    ("exiftool", "Read and write file metadata", "media forensics"),
+    ("zeek", "Network security monitor", "security network"),
+    ("suricata", "Network IDS/IPS and security monitoring", "security network"),
+], profiles=(SEC,))
+cask(C_REV, [("cutter", "GUI for radare2/Rizin reverse engineering", "security reverse")], profiles=(SEC,))
+C_PRIV = "Privacy & Secrets"
+formula(C_PRIV, [
+    ("gnupg", "GPG: encryption and signatures", "security"),
+    ("age", "Simple, modern file encryption", "security"),
+    ("sops", "Encrypted secrets files (YAML/JSON/ENV)", "security iac"),
+    ("pass", "The standard Unix password manager", "security"),
+    ("gopass", "Team password manager for the terminal", "security"),
+    ("bitwarden-cli", "Bitwarden CLI", "security"),
+    ("openssl@3", "TLS/SSL and crypto library", "security"),
+    ("tor", "Anonymizing overlay network", "security privacy"),
+], profiles=(SEC,))
+cask(C_PRIV, [
+    ("keepassxc", "Offline password manager", "security"),
+    ("veracrypt", "Disk encryption", "security"),
+    ("cryptomator", "Client-side cloud encryption", "security"),
+    ("protonvpn", "Proton VPN", "security privacy"),
+    ("lulu", "Open-source macOS firewall", "security mac"),
+    ("knockknock", "Show persistently installed software", "security mac"),
+    ("blockblock", "Alert on persistence attempts", "security mac"),
+    ("oversight", "Monitor mic and webcam usage", "security mac"),
+    ("malwarebytes", "Malware scanner", "security malware"),
+], profiles=(SEC,))
+
+# ───────────────────── Kits for the new profiles ─────────────────────
+KITS.extend([
+    Kit("QA Web Automation", "Selenium, browsers, Lighthouse and API checks", QA,
+        ("formula:selenium-server", "formula:geckodriver", "cask:chromedriver", "cask:google-chrome",
+         "cask:firefox", "formula:lighthouse", "formula:newman", "formula:hurl", "cask:bruno")),
+    Kit("QA Mobile", "Appium, Maestro and Android tooling", QA,
+        ("formula:appium", "cask:maestro", "cask:android-studio", "formula:pytest")),
+    Kit("QA Load Testing", "k6, JMeter, Locust and reports", QA,
+        ("formula:k6", "formula:jmeter", "formula:locust", "formula:allure", "formula:httpie")),
+    Kit("Office Essentials", "Docs, notes, chat and window management", OFFICE,
+        ("cask:libreoffice", "cask:obsidian", "cask:notion", "cask:slack", "cask:zoom",
+         "cask:rectangle", "cask:raycast", "cask:keka", "cask:bitwarden")),
+    Kit("PDF & Documents", "Edit, OCR and convert documents", OFFICE,
+        ("formula:pandoc", "formula:ghostscript", "formula:qpdf", "formula:tesseract",
+         "formula:ocrmypdf", "cask:skim", "cask:pdfsam-basic")),
+    Kit("Web Designer", "UI design, optimization and previews", DESIGN,
+        ("cask:figma", "cask:responsively", "cask:imageoptim", "cask:colorsnapper", "formula:svgo",
+         "formula:webp", "cask:font-inter")),
+    Kit("Graphic Designer", "Vector, raster, photo and 3D", DESIGN,
+        ("cask:inkscape", "cask:gimp", "cask:krita", "cask:darktable", "cask:blender",
+         "formula:imagemagick")),
+    Kit("Video Creator", "Edit, convert and publish video", DESIGN,
+        ("cask:kdenlive", "cask:shotcut", "cask:handbrake-app", "cask:obs", "cask:iina",
+         "formula:ffmpeg", "formula:yt-dlp", "cask:audacity")),
+    Kit("DJ Starter", "Mix, record and route audio", DJ,
+        ("cask:mixxx", "cask:audacity", "cask:blackhole-2ch", "cask:audio-hijack", "formula:ffmpeg",
+         "formula:sox", "formula:lame", "formula:flac")),
+    Kit("Music Producer", "DAWs and synths for production", DJ,
+        ("cask:reaper", "cask:bitwig-studio", "cask:lmms", "cask:vcv-rack", "cask:sonic-pi",
+         "cask:ocenaudio")),
+    Kit("Data Science Lab", "Python, notebooks and analysis tools", DS,
+        ("formula:python@3.12", "formula:uv", "formula:jupyterlab", "formula:numpy", "formula:scipy",
+         "formula:duckdb", "formula:visidata", "formula:csvkit", "formula:graphviz")),
+    Kit("R & Statistics", "R, RStudio and Quarto", DS,
+        ("formula:r", "cask:rstudio", "cask:quarto", "formula:pandoc", "formula:gnuplot")),
+    Kit("Local AI", "Run LLMs on your machine", DS,
+        ("formula:ollama", "formula:llama.cpp", "cask:lm-studio", "formula:uv")),
+    Kit("Data Engineering Core", "Spark, Kafka and warehouse tooling", DE,
+        ("formula:apache-spark", "formula:kafka", "formula:kcat", "formula:trino", "formula:duckdb",
+         "formula:sqlfluff", "formula:rclone", "formula:minio-mc", "formula:awscli")),
+    Kit("Databases & Migrations", "Engines, clients and migration tools", DE,
+        ("formula:postgresql@16", "formula:mysql", "formula:redis", "formula:pgcli", "formula:mycli",
+         "formula:flyway", "formula:liquibase", "cask:dbeaver-community")),
+    Kit("Network Troubleshooting", "Diagnose connectivity and performance", NET,
+        ("formula:nmap", "formula:mtr", "formula:iperf3", "formula:fping", "formula:tcpdump",
+         "formula:doggo", "formula:whois", "formula:speedtest-cli", "formula:bandwhich")),
+    Kit("Remote Support", "Remote desktop, SSH and VPN for helpdesk work", NET,
+        ("cask:rustdesk", "cask:anydesk", "cask:termius", "formula:mosh", "formula:tailscale",
+         "cask:windows-app")),
+    Kit("Pentest Starter", "Recon, scanning and web testing", SEC,
+        ("formula:nmap", "formula:amass", "formula:subfinder", "formula:httpx", "formula:nuclei",
+         "formula:ffuf", "formula:gobuster", "cask:burp-suite", "cask:zap")),
+    Kit("AppSec & Secrets", "Find vulnerabilities and leaked secrets in code", SEC,
+        ("formula:semgrep", "formula:bandit", "formula:gitleaks", "formula:trufflehog", "formula:trivy",
+         "formula:checkov", "formula:sops")),
+    Kit("Privacy & Hardening", "Encryption, password managers and Mac firewall", SEC,
+        ("cask:keepassxc", "cask:veracrypt", "cask:cryptomator", "cask:lulu", "cask:oversight",
+         "formula:gnupg", "formula:age")),
+])
+
 # Merge duplicate keys (same package listed in several areas): keep the first, union profiles/tags.
 _merged: dict = {}
 for _it in ITEMS:
@@ -637,7 +1090,20 @@ CATEGORIES_DEV = [C_TERM, C_EDIT, C_GIT, C_LANG, C_NODE, C_GO, C_NET, C_JAVA, C_
                   C_CONT, C_DB, C_API, C_UTIL, C_FONT]
 CATEGORIES_SRE = [C_CLOUD, C_IAC, C_K8S, C_CONT, C_PAAS, C_OBS, C_API]
 CATEGORIES_GAMER = [C_STORE, C_COMP, C_EMU, C_STREAM, C_ENG, C_PERF]
-ALL_CATEGORIES = list(dict.fromkeys(CATEGORIES_DEV + CATEGORIES_SRE + CATEGORIES_GAMER))
+PROFILE_CATEGORIES = {
+    DEV: CATEGORIES_DEV,
+    SRE: CATEGORIES_SRE,
+    QA: [C_QA_AUTO, C_QA_PERF],
+    DS: [C_DS],
+    DE: [C_DE],
+    NET: [C_NETD, C_REMOTE],
+    SEC: [C_PEN, C_APPSEC, C_REV, C_PRIV],
+    DESIGN: [C_DWEB, C_DGFX, C_DVID],
+    DJ: [C_DJ],
+    OFFICE: [C_OFFICE, "Communication & Cloud Drive", "Documents & PDF Tools"],
+    GAMER: CATEGORIES_GAMER,
+}
+ALL_CATEGORIES = list(dict.fromkeys(c for cats in PROFILE_CATEGORIES.values() for c in cats))
 
 BY_KEY = {i.key: i for i in ITEMS}
 
@@ -647,6 +1113,14 @@ ESSENTIALS = {
           "formula:starship", "formula:gh", "formula:btop"],
     SRE: ["formula:kubernetes-cli", "formula:k9s", "formula:terraform", "formula:awscli",
           "cask:gcloud-cli", "cask:azure-cli", "formula:helm", "formula:jq", "formula:trivy"],
+    QA: ["cask:google-chrome", "cask:postman", "formula:k6", "cask:chromedriver", "formula:hurl"],
+    DS: ["formula:python@3.12", "formula:uv", "formula:jupyterlab", "formula:duckdb", "formula:visidata"],
+    DE: ["formula:apache-spark", "formula:kafka", "formula:duckdb", "formula:postgresql@16", "formula:awscli"],
+    NET: ["formula:nmap", "formula:mtr", "cask:wireshark-app", "formula:iperf3", "cask:termius"],
+    SEC: ["formula:nmap", "cask:burp-suite", "formula:trivy", "formula:gitleaks", "cask:keepassxc"],
+    DESIGN: ["cask:figma", "cask:inkscape", "cask:gimp", "cask:kdenlive", "formula:ffmpeg"],
+    DJ: ["cask:mixxx", "cask:audacity", "cask:blackhole-2ch", "cask:reaper", "formula:ffmpeg"],
+    OFFICE: ["cask:libreoffice", "cask:obsidian", "cask:slack", "cask:zoom", "cask:rectangle"],
     GAMER: ["cask:steam", "cask:discord", "cask:obs", "cask:heroic", "cask:retroarch",
             "formula:btop", "cask:stats", "cask:vlc"],
 }

@@ -12,7 +12,9 @@ USAGE
   brewcat --version    show the version
 
 PACKAGES TAB
-  Profile     All, Dev, SRE/Cloud or Gamer filters the catalog and the categories.
+  Profile     All, Dev, SRE/Cloud, QA, Data Scientist, Data Engineer, Support & Network,
+              Security, Design (web/video/graphics), DJ/Music, Office or Gamer. It filters the
+              catalog, categories, kits and suggestions.
   Platform    mac or linux. Casks (GUI apps) exist only on macOS.
   Search      Type 2+ letters. Matches the curated catalog (name, description, tags) and
               also any package in Homebrew (via `brew search`), listed under

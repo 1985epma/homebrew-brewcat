@@ -102,7 +102,10 @@ BREW_CANDIDATES = [
 ALL, SUGGEST, KITS, CART = "★ All", "✨ Suggestions", "📦 Kits", "🛒 My list"
 SEARCH = "🔎 Homebrew search"
 EXTRA_CAT = "Homebrew search"
-PROFILES = [("All", None), ("Dev", cd.DEV), ("SRE/Cloud", cd.SRE), ("Gamer", cd.GAMER)]
+PROFILES = [("All", None), ("Dev", cd.DEV), ("SRE / Cloud", cd.SRE), ("QA", cd.QA),
+            ("Data Scientist", cd.DS), ("Data Engineer", cd.DE), ("Support & Network", cd.NET),
+            ("Security", cd.SEC), ("Design (web, video, graphics)", cd.DESIGN), ("DJ / Music", cd.DJ),
+            ("Office", cd.OFFICE), ("Gamer", cd.GAMER)]
 
 
 def find_brew() -> Optional[str]:
@@ -167,9 +170,10 @@ class App(tk.Tk):
         bar = ttk.Frame(pkg_tab, padding=(10, 0, 10, 8))
         bar.pack(fill="x")
         ttk.Label(bar, text="Profile:").pack(side="left")
-        for label, _ in PROFILES:
-            ttk.Radiobutton(bar, text=label, value=label, variable=self.profile,
-                            command=self._on_profile).pack(side="left", padx=4)
+        prof_box = ttk.Combobox(bar, textvariable=self.profile, values=[p for p, _ in PROFILES],
+                                width=28, state="readonly")
+        prof_box.pack(side="left", padx=4)
+        prof_box.bind("<<ComboboxSelected>>", lambda _e: self._on_profile())
         ttk.Label(bar, text="  Platform:").pack(side="left")
         plat = ttk.Combobox(bar, textvariable=self.platform, values=[cd.MAC, cd.LINUX],
                             width=7, state="readonly")
@@ -255,13 +259,7 @@ class App(tk.Tk):
 
     def _fill_categories(self) -> None:
         prof = self._visible_profile()
-        cats = cd.ALL_CATEGORIES
-        if prof == cd.DEV:
-            cats = cd.CATEGORIES_DEV
-        elif prof == cd.SRE:
-            cats = cd.CATEGORIES_SRE
-        elif prof == cd.GAMER:
-            cats = cd.CATEGORIES_GAMER
+        cats = cd.PROFILE_CATEGORIES.get(prof, cd.ALL_CATEGORIES) if prof else cd.ALL_CATEGORIES
         self.cat_entries = [ALL, SUGGEST, KITS, CART, SEARCH] + list(cats)
         self.cat_list.delete(0, "end")
         for c in self.cat_entries:
