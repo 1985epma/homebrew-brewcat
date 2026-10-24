@@ -15,10 +15,18 @@ from tkinter import filedialog, messagebox, ttk
 from typing import Dict, List, Optional, Set, Tuple
 
 import catalog_data as cd
+from help_text import HELP, VERSION
 from extras_tab import McpTab, SkillsTab
 from logo import draw_canvas as draw_logo
 
 os.environ.setdefault("TK_SILENCE_DEPRECATION", "1")
+
+if any(a in ("-h", "--help", "help") for a in sys.argv[1:]):
+    print(HELP)
+    sys.exit(0)
+if any(a in ("-V", "--version") for a in sys.argv[1:]):
+    print(f"brewcat {VERSION}")
+    sys.exit(0)
 
 
 def _reexec_with_modern_tk() -> None:
@@ -35,6 +43,53 @@ def _reexec_with_modern_tk() -> None:
 
 
 _reexec_with_modern_tk()
+
+
+def _ensure_branded_launcher() -> None:
+    """macOS shows the process name in the menu bar and Dock ("Python"). Re-launch through a tiny
+    brewcat.app (a copy of Python's launcher stub) so it shows "brewcat" and the cat icon."""
+    if sys.platform != "darwin" or os.environ.get("BREWCAT_BRANDED"):
+        return
+    try:
+        here = os.path.dirname(os.path.abspath(__file__))
+        stub = os.path.join(sys.base_prefix, "Resources/Python.app/Contents/MacOS/Python")
+        if not os.path.exists(stub):
+            return
+        base = os.path.expanduser("~/Library/Application Support/brewcat/brewcat.app")
+        exe = os.path.join(base, "Contents/MacOS/brewcat")
+        marker = os.path.join(base, "Contents/.stub")
+        want = os.path.realpath(stub)
+        if not (os.path.exists(exe) and os.path.exists(marker) and open(marker).read() == want):
+            shutil.rmtree(base, ignore_errors=True)
+            os.makedirs(os.path.dirname(exe))
+            os.makedirs(os.path.join(base, "Contents/Resources"))
+            shutil.copy2(stub, exe)
+            for icns in (os.path.join(here, "assets/brewcat.icns"), os.path.join(here, "brewcat.icns")):
+                if os.path.exists(icns):
+                    shutil.copy2(icns, os.path.join(base, "Contents/Resources/brewcat.icns"))
+                    break
+            with open(os.path.join(base, "Contents/Info.plist"), "w") as fh:
+                fh.write("""<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleName</key><string>brewcat</string>
+<key>CFBundleDisplayName</key><string>brewcat</string>
+<key>CFBundleIdentifier</key><string>com.github.1985epma.brewcat</string>
+<key>CFBundleExecutable</key><string>brewcat</string>
+<key>CFBundleIconFile</key><string>brewcat</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>NSHighResolutionCapable</key><true/>
+</dict></plist>
+""")
+            with open(marker, "w") as fh:
+                fh.write(want)
+        os.environ["BREWCAT_BRANDED"] = "1"
+        os.execv(exe, [exe, os.path.join(here, "app.py"), *sys.argv[1:]])
+    except Exception:  # noqa: BLE001 - branding is cosmetic; never block startup
+        os.environ["BREWCAT_BRANDED"] = "1"
+
+
+_ensure_branded_launcher()
 
 SYSTEM = cd.MAC if platform.system() == "Darwin" else cd.LINUX
 BREW_CANDIDATES = [
@@ -98,6 +153,7 @@ class App(tk.Tk):
         ttk.Label(top, text=f"  {'macOS' if SYSTEM == cd.MAC else 'Linux'}"
                             f" • {'brew found' if self.brew else 'brew NOT found'}",
                   style="Sub.TLabel").pack(side="left")
+        ttk.Button(top, text="Help", command=self.show_help).pack(side="right", padx=(6, 0))
         ttk.Button(top, text="Refresh status", command=self.refresh_installed).pack(side="right")
         ttk.Button(top, text="brew update", command=lambda: self.run_brew([["update"]])).pack(side="right", padx=6)
 
@@ -227,6 +283,19 @@ class App(tk.Tk):
     # ───────────────────────── dados ─────────────────────────
     def is_installed(self, item: cd.Item) -> bool:
         return item.name in self.installed[item.kind]
+
+    def show_help(self) -> None:
+        win = tk.Toplevel(self)
+        win.title("brewcat Help")
+        win.geometry("820x640")
+        txt = tk.Text(win, wrap="word", padx=14, pady=10, font=("Menlo", 12) if SYSTEM == cd.MAC else "TkFixedFont")
+        sb = ttk.Scrollbar(win, orient="vertical", command=txt.yview)
+        txt.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        txt.pack(fill="both", expand=True)
+        txt.insert("1.0", HELP)
+        txt.config(state="disabled")
+        self.bind_all("<F1>", lambda _e: self.show_help())
 
     # ───────────────────── search by name in all of Homebrew ─────────────────────
     def _on_search_change(self, *_args) -> None:

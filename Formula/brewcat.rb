@@ -8,7 +8,8 @@ class Brewcat < Formula
   depends_on "python-tk"
 
   def install
-    libexec.install "app.py", "catalog_data.py", "extras_tab.py", "logo.py"
+    libexec.install "app.py", "catalog_data.py", "extras_tab.py", "logo.py", "help_text.py"
+    libexec.install "assets"
     (bin/"brewcat").write <<~SH
       #!/bin/bash
       exec "#{HOMEBREW_PREFIX}/bin/python3" "#{libexec}/app.py" "$@"

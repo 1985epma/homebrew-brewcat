@@ -6,7 +6,7 @@ VERSION="${1:-0.1.2.1}"
 APP="dist/brewcat.app"
 rm -rf dist && mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-cp app.py catalog_data.py extras_tab.py logo.py "$APP/Contents/Resources/"
+cp app.py catalog_data.py extras_tab.py logo.py help_text.py "$APP/Contents/Resources/"
 cp assets/brewcat.icns "$APP/Contents/Resources/brewcat.icns"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
