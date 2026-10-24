@@ -2,7 +2,7 @@ class Brewcat < Formula
   desc "Visual catalog of Homebrew packages, skills and MCP servers for devs and gamers"
   homepage "https://github.com/1985epma/homebrew-brewcat"
   url "https://github.com/1985epma/homebrew-brewcat/archive/refs/tags/v0.1.2.1.tar.gz"
-  sha256 "5eab7b21e95b15ae0ffef115cea870e693d0aca32fd99061663a906333a619a5"
+  sha256 "5ff9eff9f3c9e75eda44f549a4400bd4751050a8da7acba5c27991bdc566ac08"
   license "MIT"
 
   depends_on "python-tk"
