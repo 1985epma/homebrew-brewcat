@@ -45,7 +45,7 @@ BREW_CANDIDATES = [
 ]
 
 ALL, SUGGEST, KITS, CART = "★ All", "✨ Suggestions", "📦 Kits", "🛒 My list"
-PROFILES = [("All", None), ("Dev", cd.DEV), ("Gamer", cd.GAMER)]
+PROFILES = [("All", None), ("Dev", cd.DEV), ("SRE/Cloud", cd.SRE), ("Gamer", cd.GAMER)]
 
 
 def find_brew() -> Optional[str]:
@@ -197,6 +197,8 @@ class App(tk.Tk):
         cats = cd.ALL_CATEGORIES
         if prof == cd.DEV:
             cats = cd.CATEGORIES_DEV
+        elif prof == cd.SRE:
+            cats = cd.CATEGORIES_SRE
         elif prof == cd.GAMER:
             cats = cd.CATEGORIES_GAMER
         self.cat_entries = [ALL, SUGGEST, KITS, CART] + list(cats)
@@ -395,6 +397,9 @@ class App(tk.Tk):
 
     @staticmethod
     def page_url(item: cd.Item) -> str:
+        if item.tap:
+            user, repo = item.tap.split("/")
+            return f"https://github.com/{user}/homebrew-{repo}"
         return f"https://formulae.brew.sh/{item.kind}/{item.name}"
 
     def open_home(self) -> None:
@@ -411,7 +416,9 @@ class App(tk.Tk):
         else:
             return
         if cmds:
-            self.run_brew(cmds)
+            lines = "\n".join("brew " + " ".join(c) for c in cmds)
+            if messagebox.askyesno("Confirm installation", f"Run the following?\n\n{lines}"):
+                self.run_brew(cmds)
         else:
             self._log("info", "Everything in this kit is already installed.\n")
 
@@ -442,7 +449,7 @@ class App(tk.Tk):
         path = filedialog.asksaveasfilename(initialfile="Brewfile", title="Save Brewfile")
         if not path:
             return
-        lines = [f'{cd.BY_KEY[k].kind == "cask" and "cask" or "brew"} "{cd.BY_KEY[k].name}"'
+        lines = [f'{cd.BY_KEY[k].kind == "cask" and "cask" or "brew"} "{cd.BY_KEY[k].full_name}"'
                  for k in sorted(keys) if self.platform.get() in cd.BY_KEY[k].platforms]
         with open(path, "w") as fh:
             fh.write("\n".join(lines) + "\n")

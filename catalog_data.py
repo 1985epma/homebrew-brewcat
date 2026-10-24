@@ -9,6 +9,7 @@ from typing import List, Tuple
 
 DEV = "dev"
 GAMER = "gamer"
+SRE = "sre"
 MAC = "mac"
 LINUX = "linux"
 BOTH = (MAC, LINUX)
@@ -23,6 +24,11 @@ class Item:
     profiles: Tuple[str, ...]
     platforms: Tuple[str, ...]
     tags: Tuple[str, ...] = ()
+    tap: str = ""  # e.g. "hashicorp/tap" for formulae outside homebrew-core
+
+    @property
+    def full_name(self) -> str:
+        return f"{self.tap}/{self.name}" if self.tap else self.name
 
     @property
     def key(self) -> str:
@@ -33,7 +39,7 @@ class Item:
         cmd = ["install"]
         if self.kind == "cask":
             cmd.append("--cask")
-        return cmd + [self.name]
+        return cmd + [self.full_name]
 
 
 @dataclass(frozen=True)
@@ -374,9 +380,264 @@ KITS: List[Kit] = [
          "formula:yt-dlp", "formula:mame")),
 ]
 
-CATEGORIES_DEV = [C_TERM, C_EDIT, C_GIT, C_LANG, C_CONT, C_DB, C_API, C_UTIL, C_FONT]
+# ───────────────────── SRE / DevOps / Cloud ─────────────────────
+S = (SRE,)
+HT = "hashicorp/tap"
+C_CLOUD = "Cloud CLIs"
+formula(C_CLOUD, [
+    ("awscli", "Official AWS CLI", "cloud aws"),
+    ("aws-sam-cli", "AWS Serverless Application Model CLI", "cloud aws serverless"),
+    ("aws-vault", "Securely store and use AWS credentials", "cloud aws security"),
+    ("aws-iam-authenticator", "Authenticate to Kubernetes (EKS) with AWS IAM", "cloud aws k8s"),
+    ("aws-cdk", "AWS Cloud Development Kit", "cloud aws iac"),
+    ("eksctl", "Create and manage Amazon EKS clusters", "cloud aws k8s"),
+    ("oci-cli", "Oracle Cloud Infrastructure CLI", "cloud oracle"),
+    ("doctl", "DigitalOcean CLI", "cloud digitalocean"),
+    ("supabase", "Supabase CLI: local dev and migrations", "cloud database"),
+    ("firebase-cli", "Firebase CLI", "cloud gcp"),
+], profiles=(SRE, DEV))
+cask(C_CLOUD, [
+    ("azure-cli", "Official Azure CLI", "cloud azure"),
+    ("gcloud-cli", "Google Cloud CLI (gcloud)", "cloud gcp"),
+    ("session-manager-plugin", "AWS Session Manager plugin for the AWS CLI", "cloud aws"),
+], profiles=(SRE, DEV))
+
+C_PAAS = "Platforms (PaaS)"
+formula(C_PAAS, [
+    ("railway", "Railway CLI: deploy and manage projects", "paas railway"),
+    ("flyctl", "Fly.io CLI", "paas fly"),
+    ("heroku", "Heroku CLI", "paas heroku"),
+    ("netlify-cli", "Netlify CLI", "paas web"),
+    ("render", "Render CLI", "paas"),
+], profiles=(SRE, DEV))
+
+C_IAC = "Infrastructure as Code"
+formula(C_IAC, [
+    ("terraform", "Terraform (from the HashiCorp tap)", "iac terraform cloud"),
+    ("packer", "Build machine images (HashiCorp tap)", "iac hashicorp"),
+    ("vault", "Secrets management (HashiCorp tap)", "iac hashicorp security"),
+    ("consul", "Service discovery and mesh (HashiCorp tap)", "iac hashicorp"),
+    ("nomad", "Workload orchestrator (HashiCorp tap)", "iac hashicorp"),
+], profiles=S)
+for _it in ITEMS[-5:]:
+    ITEMS[ITEMS.index(_it)] = Item(_it.name, _it.kind, _it.category, _it.desc, _it.profiles,
+                                   _it.platforms, _it.tags, HT)
+formula(C_IAC, [
+    ("opentofu", "Open-source Terraform fork", "iac terraform cloud"),
+    ("tenv", "Version manager for Terraform, OpenTofu and Terragrunt", "iac terraform"),
+    ("terragrunt", "Thin wrapper to keep Terraform configs DRY", "iac terraform"),
+    ("terraform-docs", "Generate docs from Terraform modules", "iac terraform docs"),
+    ("terraform-ls", "Terraform language server", "iac terraform editor"),
+    ("checkov", "Static analysis for IaC security and compliance", "iac security lint"),
+    ("infracost", "Cloud cost estimates for Terraform", "iac terraform finops"),
+    ("pulumi", "IaC in real programming languages", "iac cloud"),
+    ("ansible-lint", "Best-practices linter for Ansible", "iac devops lint"),
+], profiles=S)
+
+C_K8S = "Kubernetes Toolbox"
+formula(C_K8S, [
+    ("kustomize", "Customize Kubernetes manifests without templates", "k8s containers"),
+    ("stern", "Tail logs from multiple pods", "k8s containers"),
+    ("kubeseal", "Sealed Secrets CLI", "k8s security"),
+    ("argocd", "Argo CD CLI for GitOps", "k8s gitops"),
+    ("flux", "Flux CD CLI for GitOps", "k8s gitops"),
+    ("kubeconform", "Fast Kubernetes manifest validator", "k8s lint"),
+    ("skaffold", "Continuous development for Kubernetes", "k8s containers"),
+    ("istioctl", "Istio service mesh CLI", "k8s mesh"),
+    ("linkerd", "Linkerd service mesh CLI", "k8s mesh"),
+    ("velero", "Back up and restore cluster resources", "k8s backup"),
+    ("krew", "Plugin manager for kubectl", "k8s containers"),
+    ("popeye", "Scan clusters for misconfigurations", "k8s lint"),
+    ("k3d", "Run k3s Kubernetes clusters in Docker", "k8s containers docker"),
+    ("kubie", "Isolated kubectl contexts per shell", "k8s containers"),
+    ("kubernetes-cli", "Kubernetes CLI (kubectl)", "k8s containers"),
+    ("helm", "Kubernetes package manager", "k8s containers"),
+    ("k9s", "Terminal UI for Kubernetes clusters", "k8s containers"),
+    ("kubectx", "Switch k8s contexts and namespaces quickly", "k8s containers"),
+], profiles=S)
+cask(C_K8S, [("lens", "Kubernetes IDE", "k8s containers")], profiles=S)
+
+C_OBS = "Observability & Reliability"
+formula(C_OBS, [
+    ("prometheus", "Monitoring system and time-series database", "monitor observability"),
+    ("grafana", "Dashboards and visualization", "monitor observability"),
+    ("k6", "Modern load testing tool", "loadtest sre"),
+    ("hey", "HTTP load generator", "loadtest sre"),
+    ("wrk", "HTTP benchmarking tool", "loadtest sre"),
+    ("vegeta", "HTTP load testing tool and library", "loadtest sre"),
+    ("trivy", "Vulnerability scanner for images, IaC and repos", "security containers"),
+    ("grype", "Container and filesystem vulnerability scanner", "security containers"),
+    ("syft", "Generate SBOMs from images and filesystems", "security containers"),
+    ("cosign", "Sign and verify container images", "security containers"),
+    ("gitleaks", "Detect secrets in git repos", "security git"),
+    ("sops", "Encrypted secrets files (YAML/JSON/ENV)", "security iac"),
+    ("step", "Zero-trust PKI and certificates toolkit", "security"),
+    ("mtr", "Traceroute and ping combined", "network sre"),
+    ("iperf3", "Network throughput testing", "network sre"),
+    ("bandwhich", "Per-process network bandwidth monitor", "network sre rust"),
+    ("doggo", "Friendly DNS client", "network sre"),
+    ("ctop", "Top-like container metrics", "containers monitor"),
+    ("duf", "Better df: disk usage overview", "monitor cli"),
+    ("gdu", "Fast disk usage analyzer", "monitor cli"),
+    ("btop", "Beautiful resource monitor", "monitor"),
+    ("jq", "Command-line JSON processor", "json cli"),
+    ("yq", "YAML/JSON/XML processor", "json cli yaml"),
+    ("nmap", "Network and port scanner", "network security"),
+], profiles=S)
+cask(C_OBS, [("datadog-agent", "Datadog Agent for macOS", "monitor observability")], profiles=S)
+
+# ───────────────────── More languages ─────────────────────
+C_NODE = "Node.js & TypeScript"
+formula(C_NODE, [
+    ("typescript", "TypeScript compiler", "node web typescript"),
+    ("yarn", "Yarn package manager", "node web"),
+    ("nvm", "Node version manager", "node"),
+    ("eslint", "JavaScript/TypeScript linter", "node web lint"),
+    ("prettier", "Opinionated code formatter", "node web lint"),
+])
+
+C_GO = "Go"
+formula(C_GO, [
+    ("gopls", "Official Go language server", "go editor"),
+    ("golangci-lint", "Fast Go linters runner", "go lint"),
+    ("delve", "Go debugger", "go debug"),
+    ("goreleaser", "Release automation for Go", "go ci"),
+    ("air", "Live reload for Go apps", "go"),
+    ("gofumpt", "Stricter gofmt", "go lint"),
+    ("staticcheck", "Advanced Go static analysis", "go lint"),
+    ("gotestsum", "Better go test output", "go test"),
+    ("mockery", "Mock code generator for Go interfaces", "go test"),
+])
+
+C_NET = ".NET"
+formula(C_NET, [
+    ("dotnet", "Microsoft .NET SDK (latest)", "dotnet csharp"),
+    ("dotnet@8", ".NET 8 SDK (LTS)", "dotnet csharp"),
+    ("powershell", "PowerShell shell and scripting language", "dotnet shell"),
+    ("nuget", "NuGet package manager CLI", "dotnet csharp"),
+])
+cask(C_NET, [("dotnet-sdk", ".NET SDK installer package", "dotnet csharp")])
+
+C_JAVA = "Java & JVM"
+formula(C_JAVA, [
+    ("openjdk@21", "OpenJDK 21 (LTS)", "java"),
+    ("openjdk@17", "OpenJDK 17 (LTS)", "java"),
+    ("openjdk@11", "OpenJDK 11", "java"),
+    ("jenv", "Manage multiple Java versions", "java"),
+    ("sbt", "Scala build tool", "java scala"),
+    ("scala", "Scala programming language", "java scala"),
+    ("jbang", "Run Java as scripts", "java"),
+    ("tomcat", "Apache Tomcat servlet container", "java web"),
+    ("jdtls", "Eclipse JDT language server for Java", "java editor"),
+])
+cask(C_JAVA, [("visualvm", "Java profiler and monitor", "java monitor")])
+
+C_SHELL = "Shell & Unix"
+formula(C_SHELL, [
+    ("bash", "Bash 5 (newer than the macOS default)", "shell unix"),
+    ("zsh", "Z shell", "shell unix"),
+    ("fish", "Friendly interactive shell", "shell unix"),
+    ("nushell", "Shell that treats data as structured tables", "shell unix rust"),
+    ("bats-core", "Bash automated testing system", "shell test"),
+    ("coreutils", "GNU core utilities (ls, cp, sort…)", "unix"),
+    ("findutils", "GNU find, xargs, locate", "unix"),
+    ("gnu-sed", "GNU sed", "unix"),
+    ("gawk", "GNU awk", "unix"),
+    ("grep", "GNU grep", "unix"),
+    ("gnu-tar", "GNU tar", "unix"),
+    ("util-linux", "Linux utilities (column, getopt…)", "unix"),
+    ("moreutils", "Extra Unix tools (sponge, ts, vipe…)", "unix"),
+    ("parallel", "Run shell commands in parallel", "unix"),
+    ("rsync", "Fast, versatile file copying", "unix"),
+    ("screen", "Classic terminal multiplexer", "unix terminal"),
+    ("lsof", "List open files", "unix"),
+    ("pv", "Monitor data through a pipe", "unix"),
+    ("entr", "Run commands when files change", "unix"),
+    ("ncdu", "Disk usage analyzer (ncurses)", "unix monitor"),
+    ("bash-completion@2", "Programmable completion for Bash 4.2+", "shell unix"),
+    ("shellcheck", "Static analysis for shell scripts", "shell lint"),
+    ("shfmt", "Shell script formatter", "shell lint"),
+])
+
+C_MAIN = "Mainframe & Legacy"
+formula(C_MAIN, [
+    ("x3270", "IBM 3270 terminal emulator (X11)", "mainframe tn3270"),
+    ("hercules", "System/370, ESA/390 and z/Architecture emulator", "mainframe emulator"),
+    ("gnucobol", "GnuCOBOL compiler for COBOL", "mainframe cobol"),
+], platforms=BOTH)
+
+# ───────────────────── Extra kits ─────────────────────
+KITS.extend([
+    Kit("Terraform + AWS", "IaC with Terraform, AWS tooling and security scanners", SRE,
+        ("formula:terraform", "formula:tenv", "formula:terraform-docs",
+         "formula:checkov", "formula:infracost", "formula:awscli", "formula:aws-vault",
+         "cask:session-manager-plugin", "formula:aws-sam-cli")),
+    Kit("Google Cloud", "gcloud and Firebase for GCP work", SRE,
+        ("cask:gcloud-cli", "formula:firebase-cli", "formula:opentofu", "formula:kubernetes-cli",
+         "formula:k9s")),
+    Kit("Azure", "Azure CLI plus IaC and Kubernetes basics", SRE,
+        ("cask:azure-cli", "formula:opentofu", "formula:kubernetes-cli", "formula:helm",
+         "formula:k9s", "formula:powershell")),
+    Kit("Railway & PaaS", "Deploy fast: Railway, Fly.io, Heroku and Netlify CLIs", SRE,
+        ("formula:railway", "formula:flyctl", "formula:heroku", "formula:netlify-cli",
+         "formula:doctl")),
+    Kit("SRE Toolkit", "Debugging, load testing, networking and incident basics", SRE,
+        ("formula:k9s", "formula:stern", "formula:k6", "formula:mtr", "formula:doggo",
+         "formula:bandwhich", "formula:btop", "formula:jq", "formula:yq", "formula:duf",
+         "formula:gdu")),
+    Kit("Kubernetes Admin", "Day-2 Kubernetes tooling and GitOps", SRE,
+        ("formula:kubernetes-cli", "formula:helm", "formula:kustomize", "formula:k9s",
+         "formula:kubectx", "formula:stern", "formula:argocd", "formula:flux", "formula:kubeconform",
+         "formula:krew")),
+    Kit("DevSecOps", "Scan images, IaC and secrets in your pipeline", SRE,
+        ("formula:trivy", "formula:grype", "formula:syft", "formula:cosign", "formula:gitleaks",
+         "formula:checkov", "formula:sops")),
+    Kit("Node.js & TypeScript", "Node runtime, package managers and linting", DEV,
+        ("formula:node", "formula:fnm", "formula:pnpm", "formula:yarn", "formula:typescript",
+         "formula:eslint", "formula:prettier")),
+    Kit("Go Developer", "Go toolchain with LSP, linting and debugging", DEV,
+        ("formula:go", "formula:gopls", "formula:golangci-lint", "formula:delve",
+         "formula:goreleaser", "formula:air", "formula:gotestsum")),
+    Kit(".NET Developer", ".NET SDK, PowerShell and NuGet", DEV,
+        ("formula:dotnet", "formula:powershell", "formula:nuget", "cask:visual-studio-code",
+         "cask:azure-cli")),
+    Kit("Java Developer", "JDKs, build tools and tooling", DEV,
+        ("formula:openjdk@21", "formula:openjdk@17", "formula:jenv", "formula:maven",
+         "formula:gradle", "formula:jbang", "cask:visualvm")),
+    Kit("Shell & Unix Power User", "GNU tools, shells and scripting helpers", DEV,
+        ("formula:bash", "formula:coreutils", "formula:findutils", "formula:gnu-sed", "formula:gawk",
+         "formula:grep", "formula:parallel", "formula:moreutils", "formula:shellcheck",
+         "formula:shfmt", "formula:bats-core")),
+    Kit("Mainframe & COBOL", "3270 emulator, Hercules and GnuCOBOL", DEV,
+        ("formula:x3270", "formula:hercules", "formula:gnucobol")),
+    Kit("Game Developer", "Engines, art and libraries for building games", DEV,
+        ("cask:godot", "cask:unity-hub", "cask:blender", "cask:tiled", "cask:krita",
+         "formula:raylib", "formula:sdl3")),
+])
+
+# Merge duplicate keys (same package listed in several areas): keep the first, union profiles/tags.
+_merged: dict = {}
+for _it in ITEMS:
+    if _it.key in _merged:
+        _o = _merged[_it.key]
+        _merged[_it.key] = Item(_o.name, _o.kind, _o.category, _o.desc,
+                                tuple(dict.fromkeys(_o.profiles + _it.profiles)), _o.platforms,
+                                tuple(dict.fromkeys(_o.tags + _it.tags)), _o.tap or _it.tap)
+    else:
+        _merged[_it.key] = _it
+ITEMS[:] = list(_merged.values())
+
+# Existing Dev tooling is also useful for SRE/Cloud profiles.
+for _i, _it in enumerate(ITEMS):
+    if _it.category in (C_CONT, C_API) and SRE not in _it.profiles:
+        ITEMS[_i] = Item(_it.name, _it.kind, _it.category, _it.desc, _it.profiles + (SRE,),
+                         _it.platforms, _it.tags, _it.tap)
+
+CATEGORIES_DEV = [C_TERM, C_EDIT, C_GIT, C_LANG, C_NODE, C_GO, C_NET, C_JAVA, C_SHELL, C_MAIN,
+                  C_CONT, C_DB, C_API, C_UTIL, C_FONT]
+CATEGORIES_SRE = [C_CLOUD, C_IAC, C_K8S, C_CONT, C_PAAS, C_OBS, C_API]
 CATEGORIES_GAMER = [C_STORE, C_COMP, C_EMU, C_STREAM, C_ENG, C_PERF]
-ALL_CATEGORIES = CATEGORIES_DEV + CATEGORIES_GAMER
+ALL_CATEGORIES = list(dict.fromkeys(CATEGORIES_DEV + CATEGORIES_SRE + CATEGORIES_GAMER))
 
 BY_KEY = {i.key: i for i in ITEMS}
 
@@ -384,6 +645,8 @@ BY_KEY = {i.key: i for i in ITEMS}
 ESSENTIALS = {
     DEV: ["formula:git", "formula:ripgrep", "formula:fzf", "formula:jq", "cask:visual-studio-code",
           "formula:starship", "formula:gh", "formula:btop"],
+    SRE: ["formula:kubernetes-cli", "formula:k9s", "formula:terraform", "formula:awscli",
+          "cask:gcloud-cli", "cask:azure-cli", "formula:helm", "formula:jq", "formula:trivy"],
     GAMER: ["cask:steam", "cask:discord", "cask:obs", "cask:heroic", "cask:retroarch",
             "formula:btop", "cask:stats", "cask:vlc"],
 }

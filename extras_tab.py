@@ -250,6 +250,10 @@ class SkillsTab(ttk.Frame):
         if not picked:
             return
         targets, scope, proj = picked
+        names = ", ".join(self.skills[i].name for i in sel)
+        dests = "\n".join(str(skill_root(k, scope, proj)) for k in targets)
+        if not messagebox.askyesno("Confirm installation", f"Install skill(s): {names}\n\ninto:\n{dests}"):
+            return
         for iid in sel:
             folder = self.skills[iid]
             for k in targets:
@@ -339,6 +343,10 @@ class McpTab(ttk.Frame):
             args = shlex.split(self.f["args"].get())
         except ValueError as exc:
             messagebox.showerror("MCP", f"Invalid arguments: {exc}")
+            return
+        files = "\n".join(str(mcp_file(k, scope, proj)[0]) for k in targets)
+        if not messagebox.askyesno("Confirm installation", f"Add MCP server '{name}' "
+                                   f"({command} {' '.join(args)})\n\nto:\n{files}"):
             return
         env = dict(p.split("=", 1) for p in (s.strip() for s in self.f["env"].get().split(",")) if "=" in p)
         if not shutil.which(command):
