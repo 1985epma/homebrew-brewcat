@@ -6,6 +6,7 @@ A visual catalog (Python + Tkinter) of Homebrew packages for developers and game
 - ✨ Suggestions based on what you already have installed
 - 🏗️ SRE/Cloud profile: Terraform, AWS, Google Cloud, Azure, Railway, Kubernetes, observability
 - 🧰 Dev areas: Node.js, Go, .NET, Java, Shell/Unix, Mainframe
+- 🔎 Search any Homebrew package by name (not just the curated catalog)
 - ✅ Always asks for confirmation before installing
 - 📦 Kits (Web Full-Stack, DevOps, Retro Gaming, Streamer…)
 - 🧠 Skills: scan a GitHub repo (e.g. `anthropics/skills`) or local folder and install skills into Claude, Kiro and VS Code
@@ -29,7 +30,7 @@ A visual catalog (Python + Tkinter) of Homebrew packages for developers and game
 
 Installs to `~/.local/share/brewcat`, adds a `brewcat` command and a desktop entry.
 
-**Build the .dmg yourself (macOS):** `./scripts/build-dmg.sh 0.1.2`
+**Build the .dmg yourself (macOS):** `./scripts/build-dmg.sh 0.1.2.1`
 
 ## Run from source
 

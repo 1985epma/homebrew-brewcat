@@ -45,6 +45,8 @@ BREW_CANDIDATES = [
 ]
 
 ALL, SUGGEST, KITS, CART = "★ All", "✨ Suggestions", "📦 Kits", "🛒 My list"
+SEARCH = "🔎 Homebrew search"
+EXTRA_CAT = "Homebrew search"
 PROFILES = [("All", None), ("Dev", cd.DEV), ("SRE/Cloud", cd.SRE), ("Gamer", cd.GAMER)]
 
 
@@ -66,6 +68,9 @@ class App(tk.Tk):
         self.log_q: "queue.Queue[Tuple[str, object]]" = queue.Queue()
         self.rows: Dict[str, object] = {}  # iid -> Item | Kit
         self.reasons: Dict[str, str] = {}
+        self.extra: List[cd.Item] = []  # results of `brew search` outside the curated catalog
+        self.extra_desc: Dict[str, str] = {}
+        self._search_job: Optional[str] = None
 
         self.profile = tk.StringVar(value="All")
         self.platform = tk.StringVar(value=SYSTEM)
@@ -73,7 +78,7 @@ class App(tk.Tk):
         self.category = ALL
 
         self._build_ui()
-        self.search.trace_add("write", lambda *_: self.refresh())
+        self.search.trace_add("write", self._on_search_change)
         self.after(100, self._poll_log)
         self.refresh_installed()
 
@@ -201,7 +206,7 @@ class App(tk.Tk):
             cats = cd.CATEGORIES_SRE
         elif prof == cd.GAMER:
             cats = cd.CATEGORIES_GAMER
-        self.cat_entries = [ALL, SUGGEST, KITS, CART] + list(cats)
+        self.cat_entries = [ALL, SUGGEST, KITS, CART, SEARCH] + list(cats)
         self.cat_list.delete(0, "end")
         for c in self.cat_entries:
             self.cat_list.insert("end", c)
@@ -222,6 +227,71 @@ class App(tk.Tk):
     # ───────────────────────── dados ─────────────────────────
     def is_installed(self, item: cd.Item) -> bool:
         return item.name in self.installed[item.kind]
+
+    # ───────────────────── search by name in all of Homebrew ─────────────────────
+    def _on_search_change(self, *_args) -> None:
+        self.refresh()
+        if self._search_job:
+            self.after_cancel(self._search_job)
+        q = self.search.get().strip()
+        if len(q) < 2 or not self.brew:
+            self.extra = []
+            return
+        self._search_job = self.after(400, lambda: self._remote_search(q))
+
+    def _remote_search(self, q: str) -> None:
+        words = q.lower().split()
+
+        def worker() -> None:
+            found: List[Tuple[str, str]] = []
+            for kind, flag in (("formula", "--formulae"), ("cask", "--casks")):
+                try:
+                    out = subprocess.run([self.brew, "search", flag, words[0]], capture_output=True,
+                                         text=True, timeout=30).stdout
+                except (OSError, subprocess.SubprocessError):
+                    continue
+                for name in out.split():
+                    short = name.rsplit("/", 1)[-1]
+                    if all(w in name.lower() for w in words) and f"{kind}:{short}" not in cd.BY_KEY:
+                        found.append((kind, name))
+            self.log_q.put(("call", lambda: self._set_extra(q, found)))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _set_extra(self, q: str, found: List[Tuple[str, str]]) -> None:
+        if q != self.search.get().strip():
+            return  # stale result
+        items = []
+        for kind, name in sorted(found, key=lambda t: (t[1], t[0]))[:60]:
+            tap = ""
+            if "/" in name:  # tap-qualified result: user/repo/name
+                tap, name = name.rsplit("/", 1)
+            it = cd.Item(name, kind, EXTRA_CAT, "Not in the curated catalog", (cd.DEV, cd.SRE, cd.GAMER),
+                         cd.BOTH if kind == "formula" else (cd.MAC,), ("search",), tap)
+            cd.BY_KEY[it.key] = it
+            items.append(it)
+        self.extra = items
+        self.refresh()
+
+    def _fetch_desc(self, item: cd.Item) -> None:
+        self.extra_desc[item.key] = ""
+
+        def worker() -> None:
+            try:
+                out = subprocess.run([self.brew, "desc", f"--{item.kind}", item.full_name],
+                                     capture_output=True, text=True, timeout=30).stdout.strip()
+            except (OSError, subprocess.SubprocessError):
+                out = ""
+            text = out.split(":", 1)[1].strip() if ":" in out else (out or "No description available.")
+            self.log_q.put(("call", lambda: self._set_desc(item, text)))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _set_desc(self, item: cd.Item, text: str) -> None:
+        self.extra_desc[item.key] = text
+        obj, _ = self.selected()
+        if obj is not None and getattr(obj, "key", None) == item.key:
+            self.d_desc.config(text=text)
 
     def _matches(self, item: cd.Item) -> bool:
         prof = self._visible_profile()
@@ -291,9 +361,13 @@ class App(tk.Tk):
         elif cat == CART:
             pairs = [(cd.BY_KEY[k], "") for k in sorted(self.cart)
                      if self._matches(cd.BY_KEY[k])]
+        elif cat == SEARCH:
+            pairs = [(i, "") for i in self.extra if self.platform.get() in i.platforms]
         else:
             pairs = [(i, "") for i in sorted(cd.ITEMS, key=lambda x: x.name)
                      if (cat == ALL or i.category == cat) and self._matches(i)]
+            if cat == ALL:
+                pairs += [(i, "") for i in self.extra if self.platform.get() in i.platforms]
         for item, reason in pairs:
             mark = "✓" if self.is_installed(item) else ("🛒" if item.key in self.cart else "")
             iid = self.tree.insert("", "end", values=(mark, item.name, item.kind, item.category, item.desc),
@@ -340,7 +414,12 @@ class App(tk.Tk):
             self.d_meta.config(text=f"{obj.kind} • {obj.category} • "
                                     f"{'/'.join(obj.platforms)}"
                                     f"{' • installed' if self.is_installed(obj) else ''}")
-            self.d_desc.config(text=obj.desc)
+            desc = obj.desc
+            if obj.category == EXTRA_CAT:
+                desc = self.extra_desc.get(obj.key) or "Not in the curated catalog. Loading description…"
+                if obj.key not in self.extra_desc:
+                    self._fetch_desc(obj)
+            self.d_desc.config(text=desc)
             self.d_reason.config(text=self.reasons.get(iid, ""))
             self.d_url.config(text="🔗 " + self.page_url(obj))
             self._set_cmd("brew " + " ".join(obj.install_cmd))
