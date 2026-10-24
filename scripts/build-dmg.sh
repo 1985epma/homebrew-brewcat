@@ -1,9 +1,9 @@
 #!/bin/bash
-# Build dist/Brewcat-<version>.dmg containing a launcher-style Brewcat.app (macOS only).
+# Build dist/brewcat-<version>.dmg containing a launcher-style brewcat.app (macOS only).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 VERSION="${1:-0.1.0}"
-APP="dist/Brewcat.app"
+APP="dist/brewcat.app"
 rm -rf dist && mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 cp app.py catalog_data.py extras_tab.py "$APP/Contents/Resources/"
@@ -12,8 +12,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-  <key>CFBundleName</key><string>Brewcat</string>
-  <key>CFBundleDisplayName</key><string>Homebrew Catalog</string>
+  <key>CFBundleName</key><string>brewcat</string>
+  <key>CFBundleDisplayName</key><string>brewcat</string>
   <key>CFBundleIdentifier</key><string>com.github.1985epma.brewcat</string>
   <key>CFBundleVersion</key><string>${VERSION}</string>
   <key>CFBundleShortVersionString</key><string>${VERSION}</string>
@@ -34,12 +34,12 @@ for PY in /opt/homebrew/bin/python3 /usr/local/bin/python3; do
     exec "$PY" "$DIR/app.py"
   fi
 done
-osascript -e 'display dialog "Homebrew Catalog needs Homebrew and python-tk.\n\nInstall them with:\n  brew install python-tk\n\nThen open the app again." buttons {"OK"} default button "OK" with icon caution with title "Homebrew Catalog"'
+osascript -e 'display dialog "brewcat needs Homebrew and python-tk.\n\nInstall them with:\n  brew install python-tk\n\nThen open the app again." buttons {"OK"} default button "OK" with icon caution with title "brewcat"'
 LAUNCH
 chmod +x "$APP/Contents/MacOS/brewcat"
 
 STAGE="dist/dmg"
 mkdir -p "$STAGE" && cp -R "$APP" "$STAGE/" && ln -s /Applications "$STAGE/Applications"
-hdiutil create -volname "Homebrew Catalog" -srcfolder "$STAGE" -ov -format UDZO "dist/Brewcat-${VERSION}.dmg" >/dev/null
+hdiutil create -volname "brewcat" -srcfolder "$STAGE" -ov -format UDZO "dist/brewcat-${VERSION}.dmg" >/dev/null
 rm -rf "$STAGE"
-echo "Built dist/Brewcat-${VERSION}.dmg"
+echo "Built dist/brewcat-${VERSION}.dmg"

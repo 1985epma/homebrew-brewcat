@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Homebrew Catalog: visual package catalog for devs and gamers (macOS and Linux)."""
+"""brewcat: visual package catalog for devs and gamers (macOS and Linux)."""
 from __future__ import annotations
 
 import os
@@ -54,7 +54,7 @@ def find_brew() -> Optional[str]:
 class App(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
-        self.title("Homebrew Catalog")
+        self.title("brewcat")
         self.geometry("1180x720")
         self.minsize(960, 600)
 
@@ -85,7 +85,7 @@ class App(tk.Tk):
 
         top = ttk.Frame(self, padding=(10, 8))
         top.pack(fill="x")
-        ttk.Label(top, text="🍺 Homebrew Catalog", style="Title.TLabel").pack(side="left")
+        ttk.Label(top, text="🍺 brewcat", style="Title.TLabel").pack(side="left")
         ttk.Label(top, text=f"  {'macOS' if SYSTEM == cd.MAC else 'Linux'}"
                             f" • {'brew found' if self.brew else 'brew NOT found'}",
                   style="Sub.TLabel").pack(side="left")

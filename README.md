@@ -1,4 +1,4 @@
-# Homebrew Catalog
+# brewcat
 
 A visual catalog (Python + Tkinter) of Homebrew packages for developers and gamers, on macOS and Linux.
 
@@ -18,7 +18,7 @@ A visual catalog (Python + Tkinter) of Homebrew packages for developers and game
 
 ## Other install options
 
-**macOS (.dmg):** download `Brewcat-<version>.dmg` from [Releases](https://github.com/1985epma/homebrew-utils/releases), drag *Brewcat* to Applications. The app is unsigned: right-click → Open the first time. It needs `brew install python-tk`.
+**macOS (.dmg):** download `brewcat-<version>.dmg` from [Releases](https://github.com/1985epma/homebrew-utils/releases), drag *brewcat* to Applications. The app is unsigned: right-click → Open the first time. It needs `brew install python-tk`.
 
 **Linux (script):**
 

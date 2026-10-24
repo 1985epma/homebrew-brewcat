@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install Homebrew Catalog (brewcat) on Linux (also works on macOS).
+# Install brewcat on Linux (also works on macOS).
 #   curl -fsSL https://raw.githubusercontent.com/1985epma/homebrew-utils/main/install.sh | bash
 set -euo pipefail
 REPO="https://github.com/1985epma/homebrew-utils.git"
@@ -32,7 +32,7 @@ if [ "$(uname)" = "Linux" ]; then
   cat > "$HOME/.local/share/applications/brewcat.desktop" <<DESKTOP
 [Desktop Entry]
 Type=Application
-Name=Homebrew Catalog
+Name=brewcat
 Comment=Catalog of Homebrew packages, skills and MCP servers
 Exec=$BIN/brewcat
 Terminal=false
