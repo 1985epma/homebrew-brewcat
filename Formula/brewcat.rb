@@ -3,6 +3,7 @@ class Brewcat < Formula
   homepage "https://github.com/1985epma/homebrew-utils"
   url "https://github.com/1985epma/homebrew-utils/archive/refs/tags/v0.1.0.tar.gz"
   sha256 "d400202c8b80b71033c68952f540008aaa82a5c4fa4157645deb61f80e158704"
+  license "MIT"
 
   depends_on "python-tk"
 

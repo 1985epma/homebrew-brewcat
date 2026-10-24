@@ -44,3 +44,7 @@ On Linux: `brew install python-tk` or your distro's `python3-tk` package.
 | VS Code | `~/.copilot/skills` / `.github/skills` | user `mcp.json` / `.vscode/mcp.json` |
 
 MCP configs are edited in place and a `.bak` copy is kept.
+
+## License
+
+[MIT](LICENSE)
