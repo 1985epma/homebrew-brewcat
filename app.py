@@ -16,6 +16,7 @@ from typing import Dict, List, Optional, Set, Tuple
 
 import catalog_data as cd
 from extras_tab import McpTab, SkillsTab
+from logo import draw_canvas as draw_logo
 
 os.environ.setdefault("TK_SILENCE_DEPRECATION", "1")
 
@@ -85,7 +86,10 @@ class App(tk.Tk):
 
         top = ttk.Frame(self, padding=(10, 8))
         top.pack(fill="x")
-        ttk.Label(top, text="🍺 brewcat", style="Title.TLabel").pack(side="left")
+        logo = tk.Canvas(top, width=36, height=36, highlightthickness=0, bd=0)
+        draw_logo(logo, 36)
+        logo.pack(side="left", padx=(0, 8))
+        ttk.Label(top, text="brewcat", style="Title.TLabel").pack(side="left")
         ttk.Label(top, text=f"  {'macOS' if SYSTEM == cd.MAC else 'Linux'}"
                             f" • {'brew found' if self.brew else 'brew NOT found'}",
                   style="Sub.TLabel").pack(side="left")

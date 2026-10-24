@@ -12,21 +12,21 @@ A visual catalog (Python + Tkinter) of Homebrew packages for developers and game
 
 ## Install with Homebrew
 
-    brew tap 1985epma/utils
+    brew tap 1985epma/brewcat
     brew install brewcat
     brewcat
 
 ## Other install options
 
-**macOS (.dmg):** download `brewcat-<version>.dmg` from [Releases](https://github.com/1985epma/homebrew-utils/releases), drag *brewcat* to Applications. The app is unsigned: right-click → Open the first time. It needs `brew install python-tk`.
+**macOS (.dmg):** download `brewcat-<version>.dmg` from [Releases](https://github.com/1985epma/homebrew-brewcat/releases), drag *brewcat* to Applications. The app is unsigned: right-click → Open the first time. It needs `brew install python-tk`.
 
 **Linux (script):**
 
-    curl -fsSL https://raw.githubusercontent.com/1985epma/homebrew-utils/main/install.sh | bash
+    curl -fsSL https://raw.githubusercontent.com/1985epma/homebrew-brewcat/main/install.sh | bash
 
 Installs to `~/.local/share/brewcat`, adds a `brewcat` command and a desktop entry.
 
-**Build the .dmg yourself (macOS):** `./scripts/build-dmg.sh 0.1.0`
+**Build the .dmg yourself (macOS):** `./scripts/build-dmg.sh 0.1.1`
 
 ## Run from source
 

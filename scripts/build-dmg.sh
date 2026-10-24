@@ -2,11 +2,12 @@
 # Build dist/brewcat-<version>.dmg containing a launcher-style brewcat.app (macOS only).
 set -euo pipefail
 cd "$(dirname "$0")/.."
-VERSION="${1:-0.1.0}"
+VERSION="${1:-0.1.1}"
 APP="dist/brewcat.app"
 rm -rf dist && mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-cp app.py catalog_data.py extras_tab.py "$APP/Contents/Resources/"
+cp app.py catalog_data.py extras_tab.py logo.py "$APP/Contents/Resources/"
+cp assets/brewcat.icns "$APP/Contents/Resources/brewcat.icns"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -18,6 +19,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleVersion</key><string>${VERSION}</string>
   <key>CFBundleShortVersionString</key><string>${VERSION}</string>
   <key>CFBundleExecutable</key><string>brewcat</string>
+  <key>CFBundleIconFile</key><string>brewcat</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>LSMinimumSystemVersion</key><string>11.0</string>
   <key>NSHighResolutionCapable</key><true/>

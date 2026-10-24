@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Install brewcat on Linux (also works on macOS).
-#   curl -fsSL https://raw.githubusercontent.com/1985epma/homebrew-utils/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/1985epma/homebrew-brewcat/main/install.sh | bash
 set -euo pipefail
-REPO="https://github.com/1985epma/homebrew-utils.git"
+REPO="https://github.com/1985epma/homebrew-brewcat.git"
 DEST="${BREWCAT_HOME:-$HOME/.local/share/brewcat}"
 BIN="$HOME/.local/bin"
 
