@@ -18,7 +18,16 @@ if ! python3 -c "import tkinter" 2>/dev/null; then
 fi
 command -v brew >/dev/null || echo "Note: Homebrew not found. Install it from https://brew.sh to install packages from the app."
 
-if [ -d "$DEST/.git" ]; then git -C "$DEST" pull --ff-only; else git clone --depth 1 "$REPO" "$DEST"; fi
+# Install a released tag instead of the moving `main` branch. Pin one with: BREWCAT_REF=v0.1.2.3
+REF="${BREWCAT_REF:-$(git ls-remote --tags --refs "$REPO" 'v*' | awk -F/ '{print $NF}' | sort -V | tail -1)}"
+REF="${REF:-main}"
+if [ -d "$DEST/.git" ]; then
+  git -C "$DEST" fetch --depth 1 origin "$REF"
+  git -C "$DEST" -c advice.detachedHead=false checkout -q FETCH_HEAD
+else
+  git -c advice.detachedHead=false clone --depth 1 --branch "$REF" "$REPO" "$DEST"
+fi
+echo "Installed brewcat $REF ($(git -C "$DEST" rev-parse --short HEAD))"
 
 mkdir -p "$BIN"
 cat > "$BIN/brewcat" <<LAUNCH

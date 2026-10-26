@@ -18,6 +18,8 @@ from typing import Dict, List, Optional, Tuple
 HOME = Path.home()
 TARGETS = [("claude", "Claude"), ("kiro", "Kiro"), ("vscode", "VS Code")]
 SKILL_PRESETS = ["anthropics/skills"]
+TRUSTED_SOURCES = {"anthropics/skills"}
+SCRIPT_EXTS = {".sh", ".bash", ".zsh", ".py", ".js", ".mjs", ".ts", ".rb", ".pl", ".ps1", ".command"}
 SKIP_DIRS = {".git", "node_modules", "__pycache__"}
 
 # name, command, args, description, env hint
@@ -126,8 +128,30 @@ def parse_repo(spec: str) -> Tuple[str, Optional[str], str]:
             raise ValueError("Invalid branch name")
         return f"https://github.com/{m.group(1)}.git", branch, m.group(3) or ""
     if re.match(r"(https://|ssh://|git@)[\w.@:/~-]+$", spec):
+        rest = re.sub(r"^(https://|ssh://|git@)", "", spec)
+        host = rest.rsplit("@", 1)[-1]
+        if rest.startswith("-") or host.startswith("-"):  # ssh would read it as an option
+            raise ValueError("Invalid source host")
         return spec, None, ""
     raise ValueError("Invalid source: use owner/repo, a GitHub URL or a local folder")
+
+
+def skill_scripts(folder: Path) -> List[str]:
+    """Executable content shipped with a skill (scripts or files with the exec bit)."""
+    out = []
+    for p in sorted(folder.rglob("*")):
+        if p.is_file() and not p.is_symlink() and ".git" not in p.parts:
+            if p.suffix.lower() in SCRIPT_EXTS or p.stat().st_mode & 0o111:
+                out.append(str(p.relative_to(folder)))
+    return out
+
+
+def git_head(path: Path) -> str:
+    try:
+        return subprocess.run(["git", "-C", str(path), "rev-parse", "HEAD"], capture_output=True,
+                              text=True, timeout=15).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return ""
 
 
 def unsafe_links(folder: Path) -> List[Path]:
@@ -188,6 +212,8 @@ class SkillsTab(ttk.Frame):
         super().__init__(master, padding=10)
         self.app = app
         self.tmp: Optional[str] = None
+        self.scanned_spec = ""
+        self.scanned_commit = ""
         self.skills: Dict[str, Path] = {}
 
         src = ttk.Frame(self)
@@ -225,6 +251,7 @@ class SkillsTab(ttk.Frame):
 
         def worker() -> None:
             try:
+                self.scanned_spec, self.scanned_commit = spec, ""
                 if Path(spec).expanduser().is_dir():
                     root = Path(spec).expanduser()
                 else:
@@ -237,6 +264,7 @@ class SkillsTab(ttk.Frame):
                     if r.returncode:
                         raise RuntimeError(r.stderr.strip() or "git clone failed")
                     self.tmp = tmp
+                    self.scanned_commit = git_head(Path(tmp))
                     root = (Path(tmp) / sub).resolve()
                     root.relative_to(Path(tmp).resolve())  # a "../" sub-path must not leave the clone
                 found = scan_skills(root)
@@ -277,7 +305,19 @@ class SkillsTab(ttk.Frame):
         targets, scope, proj = picked
         names = ", ".join(self.skills[i].name for i in sel)
         dests = "\n".join(str(skill_root(k, scope, proj)) for k in targets)
-        if not messagebox.askyesno("Confirm installation", f"Install skill(s): {names}\n\ninto:\n{dests}"):
+        trusted = self.scanned_spec in TRUSTED_SOURCES
+        lines = [f"Install skill(s): {names}", f"Source: {self.scanned_spec or 'local folder'}"
+                 + (f" @ {self.scanned_commit[:10]}" if self.scanned_commit else "")]
+        if not trusted:
+            lines.append("⚠ This source is not in brewcat's trusted list. A skill is a set of instructions "
+                         "(and sometimes scripts) your AI tool will follow. Review it before installing.")
+        for i in sel:
+            scripts = skill_scripts(self.skills[i])
+            if scripts:
+                shown = ", ".join(scripts[:6]) + (f" … (+{len(scripts) - 6})" if len(scripts) > 6 else "")
+                lines.append(f"⚠ {self.skills[i].name} ships {len(scripts)} script(s): {shown}")
+        lines += ["", "into:", dests]
+        if not messagebox.askyesno("Confirm installation", "\n".join(lines)):
             return
         for iid in sel:
             folder = self.skills[iid]
@@ -295,6 +335,9 @@ class SkillsTab(ttk.Frame):
                         shutil.rmtree(dest)
                     dest.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copytree(folder, dest, symlinks=True, ignore=shutil.ignore_patterns(".git"))
+                    with open(dest / ".brewcat-source.json", "w") as fh:
+                        json.dump({"source": self.scanned_spec, "commit": self.scanned_commit,
+                                   "installed_by": "brewcat"}, fh, indent=2)
                     self.app._log("info", f"✓ {folder.name} → {dest}\n")
                 except OSError as exc:
                     self.app._log("err", f"✗ {folder.name} → {dest}: {exc}\n")
@@ -375,8 +418,12 @@ class McpTab(ttk.Frame):
             messagebox.showerror("MCP", f"Invalid arguments: {exc}")
             return
         files = "\n".join(str(mcp_file(k, scope, proj)[0]) for k in targets)
-        if not messagebox.askyesno("Confirm installation", f"Add MCP server '{name}' "
-                                   f"({command} {' '.join(args)})\n\nto:\n{files}"):
+        known = any(p[0] == name and p[1] == command and shlex.split(p[2]) == args for p in MCP_PRESETS)
+        warn = "" if known else ("\n\n⚠ Custom command (not one of brewcat's built-in presets). It will run on "
+                                 "your machine, with your permissions, whenever your AI tool starts this server. "
+                                 "Only continue if you trust where it came from.")
+        if not messagebox.askyesno("Confirm installation", f"Add MCP server '{name}'\n"
+                                   f"{command} {' '.join(args)}{warn}\n\nto:\n{files}"):
             return
         env = dict(p.split("=", 1) for p in (s.strip() for s in self.f["env"].get().split(",")) if "=" in p)
         if not shutil.which(command):

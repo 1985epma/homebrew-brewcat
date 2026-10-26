@@ -37,7 +37,8 @@ Recent Homebrew versions refuse to load formulae from third-party taps until you
 
     curl -fsSL https://raw.githubusercontent.com/1985epma/homebrew-brewcat/main/install.sh | bash
 
-Installs to `~/.local/share/brewcat`, adds a `brewcat` command and a desktop entry.
+Installs to `~/.local/share/brewcat`, adds a `brewcat` command and a desktop entry. It installs the latest released tag (not the moving `main` branch); pin a version with `BREWCAT_REF=v0.1.2.3`.
+Review the script before piping it to `bash`: https://github.com/1985epma/homebrew-brewcat/blob/main/install.sh
 
 **Build the .dmg yourself (macOS):** `./scripts/build-dmg.sh 0.1.2.3`
 

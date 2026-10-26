@@ -36,7 +36,11 @@ def _reexec_with_modern_tk() -> None:
         return
     for py in ("/opt/homebrew/bin/python3", "/usr/local/bin/python3",
                "/home/linuxbrew/.linuxbrew/bin/python3"):
-        if os.path.exists(py) and os.path.realpath(py) != os.path.realpath(sys.executable):
+        real = os.path.realpath(py)
+        # Only trust a Python that really lives inside a Homebrew prefix (not an arbitrary file).
+        in_brew = real.startswith(("/opt/homebrew/", "/usr/local/Cellar/", "/usr/local/opt/",
+                                   "/home/linuxbrew/.linuxbrew/"))
+        if os.path.exists(py) and in_brew and real != os.path.realpath(sys.executable):
             os.environ["BREWCAT_REEXEC"] = "1"
             os.execv(py, [py, *sys.argv])
     print("Warning: Tk < 8.6 detected; the window may be blank. Run: brew install python-tk",
@@ -123,19 +127,23 @@ def ensure_askpass() -> Optional[str]:
     path = os.path.join(base, "askpass.sh")
     if sys.platform == "darwin":
         body = ("#!/bin/bash\n"
-                "/usr/bin/osascript -e 'text returned of (display dialog "
-                "\"brewcat: enter your macOS password to continue the installation\" "
-                "default answer \"\" with hidden answer with icon caution with title \"brewcat\")'\n")
+                "/usr/bin/osascript -e 'on run argv' "
+                "-e 'set pkg to item 1 of argv' "
+                "-e 'set msg to \"brewcat: enter your macOS password\"' "
+                "-e 'if pkg is not \"\" then set msg to msg & \" to install \" & pkg' "
+                "-e 'text returned of (display dialog msg default answer \"\" with hidden answer "
+                "with icon caution with title \"brewcat\")' "
+                "-e 'end run' -- \"${BREWCAT_PKG:-}\"\n")
     else:
         body = ("#!/bin/bash\n"
-                "if command -v zenity >/dev/null; then exec zenity --password --title=brewcat\n"
-                "elif command -v kdialog >/dev/null; then exec kdialog --password 'brewcat: enter your password'\n"
+                "if command -v zenity >/dev/null; then exec zenity --password --title=\"brewcat ${BREWCAT_PKG:-}\"\n"
+                "elif command -v kdialog >/dev/null; then exec kdialog --password \"brewcat: enter your password ${BREWCAT_PKG:-}\"\n"
                 "else exit 1; fi\n")
     try:
         os.makedirs(base, exist_ok=True)
-        if not os.path.exists(path) or open(path).read() != body:
-            with open(path, "w") as fh:
-                fh.write(body)
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o700)  # never group/world readable
+        with os.fdopen(fd, "w") as fh:
+            fh.write(body)
         os.chmod(path, 0o700)
         return path
     except OSError:
@@ -783,16 +791,20 @@ class App(tk.Tk):
         env = dict(os.environ, HOMEBREW_NO_ANALYTICS="1", HOMEBREW_NO_COLOR="1",
                    HOMEBREW_NO_ENV_HINTS="1", NONINTERACTIVE="1")
         askpass = ensure_askpass()
-        if askpass:
-            env["SUDO_ASKPASS"] = askpass
 
         def worker() -> None:
             for args in cmds:
                 self.log_q.put(("cmd", f"\n$ brew {' '.join(args)}\n"))
+                cmd_env = dict(env)
+                # Only cask installs may need sudo; expose the askpass helper to those commands alone, and
+                # tell the dialog which package asks for the password.
+                if askpass and args and args[0] in ("install", "reinstall") and "--cask" in args:
+                    cmd_env["SUDO_ASKPASS"] = askpass
+                    cmd_env["BREWCAT_PKG"] = next((a for a in reversed(args) if not a.startswith("-")), "")
                 try:
                     p = subprocess.Popen(self.brew_cmd(*args), stdout=subprocess.PIPE,
                                          stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
-                                         text=True, env=env)
+                                         text=True, env=cmd_env)
                     for line in p.stdout:  # type: ignore[union-attr]
                         self.log_q.put(("out", line))
                     p.wait()
