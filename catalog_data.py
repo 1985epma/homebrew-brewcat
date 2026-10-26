@@ -4,7 +4,7 @@ Formulae work on macOS and Linux; casks (GUI apps) are macOS only.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace as _dc_replace
 from typing import List, Tuple
 
 DEV = "dev"
@@ -18,6 +18,7 @@ DS = "datascience"
 DE = "dataeng"
 NET = "network"
 SEC = "security"
+VENDOR = "vendors"
 MAC = "mac"
 LINUX = "linux"
 BOTH = (MAC, LINUX)
@@ -33,6 +34,7 @@ class Item:
     platforms: Tuple[str, ...]
     tags: Tuple[str, ...] = ()
     tap: str = ""  # e.g. "hashicorp/tap" for formulae outside homebrew-core
+    groups: Tuple[str, ...] = ()  # extra categories this package also appears in
 
     @property
     def full_name(self) -> str:
@@ -90,7 +92,7 @@ formula(C_TERM, [
     ("eza", "Modern ls with colors, icons and git status", "cli"),
     ("ripgrep", "Blazing-fast grep that respects .gitignore", "cli search"),
     ("fd", "Simple and fast find", "cli search"),
-    ("tldr", "Short, practical examples for man pages", "cli"),
+    ("tlrc", "Short, practical examples for man pages (tldr client)", "cli"),
     ("btop", "Beautiful resource monitor: CPU, memory, disk, network", "monitor"),
     ("htop", "Interactive process viewer", "monitor"),
     ("fastfetch", "System info in the terminal (neofetch successor)", "monitor"),
@@ -1068,6 +1070,209 @@ KITS.extend([
          "formula:gnupg", "formula:age")),
 ])
 
+# ───────────────────── Vendor stacks ─────────────────────
+V = (VENDOR,)
+C_MS = "Microsoft"
+cask(C_MS, [
+    ("visual-studio-code", "Extensible code editor from Microsoft", "editor microsoft"),
+    ("azure-cli", "Official Azure CLI", "cloud azure microsoft"),
+    ("azure-data-studio", "Cross-platform database tool for SQL Server and Azure", "database sql microsoft"),
+    ("microsoft-azure-storage-explorer", "Manage Azure storage accounts", "cloud azure microsoft"),
+    ("dotnet-sdk", ".NET SDK installer package", "dotnet csharp microsoft"),
+    ("github", "GitHub Desktop", "git github microsoft"),
+    ("microsoft-edge", "Microsoft Edge browser", "browser microsoft"),
+    ("microsoft-teams", "Microsoft Teams", "office chat microsoft"),
+    ("microsoft-office", "Microsoft 365 apps (Word, Excel, PowerPoint)", "office microsoft"),
+    ("microsoft-outlook", "Outlook email and calendar", "office mail microsoft"),
+    ("microsoft-excel", "Excel", "office microsoft"),
+    ("microsoft-word", "Word", "office microsoft"),
+    ("microsoft-powerpoint", "PowerPoint", "office microsoft"),
+    ("microsoft-onenote", "OneNote", "office notes microsoft"),
+    ("onedrive", "OneDrive sync", "office cloud microsoft"),
+    ("windows-app", "Windows App (remote desktop to Windows PCs and Azure Virtual Desktop)",
+     "remote microsoft"),
+    ("microsoft-auto-update", "Microsoft AutoUpdate for Office", "office microsoft"),
+], profiles=V)
+formula(C_MS, [
+    ("dotnet", "Microsoft .NET SDK (latest)", "dotnet csharp microsoft"),
+    ("powershell", "PowerShell shell and scripting language", "dotnet shell microsoft"),
+    ("sqlcmd", "Go-based sqlcmd for SQL Server", "database sql microsoft"),
+    ("azurite", "Azure Storage emulator for local development", "cloud azure microsoft"),
+    ("typescript", "TypeScript compiler", "node web typescript microsoft"),
+    ("gh", "GitHub CLI", "git github microsoft"),
+], profiles=V)
+
+C_ORA = "Oracle"
+cask(C_ORA, [
+    ("oracle-jdk", "Oracle JDK (latest)", "java oracle"),
+    ("oracle-jdk@21", "Oracle JDK 21 (LTS)", "java oracle"),
+    ("graalvm-jdk", "Oracle GraalVM JDK: JIT and native-image", "java oracle graalvm"),
+    ("sqlcl", "Oracle SQLcl: modern SQL*Plus replacement", "database sql oracle"),
+    ("mysql-shell", "MySQL Shell: SQL, JavaScript and Python", "database sql mysql oracle"),
+    ("virtualbox", "Oracle VM VirtualBox", "virtualization oracle"),
+    ("jdk-mission-control", "Java Flight Recorder analysis and profiling", "java monitor oracle"),
+], profiles=V)
+formula(C_ORA, [
+    ("mysql", "MySQL relational database", "database sql mysql oracle"),
+    ("mysql-client", "MySQL command-line client", "database sql mysql oracle"),
+    ("oci-cli", "Oracle Cloud Infrastructure CLI", "cloud oracle"),
+    ("openjdk", "OpenJDK, the open-source base of Oracle JDK", "java oracle"),
+    ("helidon", "Helidon CLI for Java microservices", "java oracle"),
+], profiles=V)
+
+C_APPLE = "Apple Developer"
+formula(C_APPLE, [
+    ("swift", "Swift toolchain", "swift apple"),
+    ("swiftly", "Swift toolchain installer and version manager", "swift apple"),
+    ("swiftformat", "Swift code formatter", "swift apple lint"),
+    ("swiftlint", "Swift style and conventions linter", "swift apple lint"),
+    ("swiftgen", "Generate Swift code for resources", "swift apple"),
+    ("sourcery", "Meta-programming for Swift", "swift apple"),
+    ("mint", "Install and run Swift command-line tools", "swift apple"),
+    ("xcodegen", "Generate Xcode projects from a spec", "xcode apple"),
+    ("xcodes", "Install and switch between Xcode versions", "xcode apple"),
+    ("xcbeautify", "Prettier xcodebuild output", "xcode apple"),
+    ("xcresultparser", "Parse .xcresult bundles", "xcode apple"),
+    ("xcode-build-server", "Build server for Xcode projects (sourcekit-lsp)", "xcode apple"),
+    ("periphery", "Find unused Swift code", "swift apple lint"),
+    ("swift-outdated", "Check outdated Swift package dependencies", "swift apple"),
+    ("fastlane", "Automate building and releasing iOS and Android apps", "mobile apple ci"),
+    ("cocoapods", "Dependency manager for Swift and Objective-C", "mobile apple"),
+    ("carthage", "Decentralized dependency manager for Cocoa", "mobile apple"),
+    ("mas", "Mac App Store command-line interface", "apple"),
+    ("create-dmg", "Create a nice DMG for your app", "apple"),
+    ("ios-deploy", "Install and debug iOS apps from the command line", "mobile apple"),
+    ("libimobiledevice", "Talk to iOS devices", "mobile apple"),
+    ("ideviceinstaller", "Manage apps on iOS devices", "mobile apple"),
+    ("container", "Apple's tool to run Linux containers as lightweight VMs", "containers apple"),
+    ("lima", "Linux virtual machines on macOS", "containers apple"),
+], profiles=V, platforms=(MAC,))
+cask(C_APPLE, [
+    ("xcodes-app", "Xcodes: install and manage Xcode versions (GUI)", "xcode apple"),
+    ("sf-symbols", "Apple's SF Symbols icon library", "design apple"),
+    ("tuist", "Tuist: generate and manage Xcode projects", "xcode apple"),
+    ("proxyman", "HTTP debugging proxy for macOS and iOS", "api http apple"),
+    ("swiftformat-for-xcode", "SwiftFormat Xcode source editor extension", "swift apple"),
+], profiles=V)
+
+C_OSS = "Open Source Apps"
+cask(C_OSS, [
+    ("libreoffice", "Full open-source office suite", "office opensource"),
+    ("firefox", "Firefox browser", "browser opensource"),
+    ("thunderbird", "Email client", "mail opensource"),
+    ("vscodium", "VS Code without Microsoft telemetry", "editor opensource"),
+    ("gimp", "Raster image editor", "design opensource"),
+    ("inkscape", "Vector graphics editor", "design opensource"),
+    ("krita", "Digital painting and illustration", "design opensource"),
+    ("blender", "3D modeling, animation and rendering", "design 3d opensource"),
+    ("kdenlive", "Open-source video editor", "video opensource"),
+    ("obs", "Recording and live streaming", "video streaming opensource"),
+    ("vlc", "Media player that plays everything", "media opensource"),
+    ("audacity", "Audio editor", "audio opensource"),
+    ("handbrake-app", "Video transcoder", "video opensource"),
+    ("keepassxc", "Offline password manager", "security opensource"),
+    ("bitwarden", "Open-source password manager", "security opensource"),
+    ("signal", "Private messenger", "chat security opensource"),
+    ("element", "Matrix chat client", "chat opensource"),
+    ("nextcloud", "Self-hosted cloud sync client", "cloud opensource"),
+    ("jellyfin", "Free media server", "media opensource"),
+    ("qbittorrent", "BitTorrent client", "network opensource"),
+    ("calibre", "E-book manager and converter", "office opensource"),
+    ("zotero", "Reference manager for research", "office research opensource"),
+    ("joplin", "Markdown notes with sync", "office notes opensource"),
+    ("godot", "Open-source 2D/3D game engine", "gamedev opensource"),
+    ("darktable", "RAW photo workflow", "design photo opensource"),
+    ("tor-browser", "Tor Browser for privacy", "browser security opensource"),
+    ("ghostty", "Fast, native, GPU-accelerated terminal", "terminal opensource"),
+], profiles=V)
+formula(C_OSS, [
+    ("neovim", "Modernized Vim, extensible with Lua", "editor vim opensource"),
+    ("gitea", "Lightweight self-hosted Git service", "git opensource"),
+    ("syncthing", "Continuous file synchronization between devices", "network opensource"),
+], profiles=V)
+
+C_RH = "Red Hat"
+formula(C_RH, [
+    ("podman", "Daemonless container engine (OCI)", "containers redhat"),
+    ("podman-compose", "docker-compose for Podman", "containers redhat"),
+    ("skopeo", "Work with remote container images and registries", "containers redhat"),
+    ("openshift-cli", "OpenShift CLI (oc)", "k8s redhat openshift"),
+    ("odo", "Developer-focused CLI for OpenShift and Kubernetes", "k8s redhat openshift"),
+    ("operator-sdk", "Build Kubernetes Operators", "k8s redhat"),
+    ("rosa-cli", "Red Hat OpenShift Service on AWS CLI", "cloud aws redhat openshift"),
+    ("tektoncd-cli", "Tekton CI/CD pipelines CLI", "k8s ci redhat"),
+    ("ansible", "Automation and configuration management", "iac devops redhat"),
+    ("ansible-lint", "Best-practices linter for Ansible", "iac devops lint redhat"),
+    ("butane", "Convert Butane configs to Ignition (Fedora CoreOS)", "iac redhat"),
+    ("virt-manager", "Desktop UI for managing virtual machines (libvirt)", "virtualization redhat"),
+    ("kubernetes-cli", "Kubernetes CLI (kubectl)", "k8s containers"),
+    ("helm", "Kubernetes package manager", "k8s containers"),
+    ("kustomize", "Customize Kubernetes manifests without templates", "k8s containers"),
+    ("argocd", "Argo CD CLI for GitOps", "k8s gitops"),
+    ("minikube", "Local Kubernetes for development", "k8s containers"),
+    ("maven", "Java build and dependency management", "java redhat"),
+    ("tomcat", "Apache Tomcat servlet container", "java web redhat"),
+], profiles=V)
+cask(C_RH, [
+    ("podman-desktop", "GUI for Podman and Kubernetes", "containers redhat"),
+    ("fedora-media-writer", "Write Fedora images to USB drives", "linux redhat"),
+], profiles=V)
+
+C_JB = "JetBrains"
+cask(C_JB, [
+    ("jetbrains-toolbox", "Manager for all JetBrains IDEs", "ide jetbrains"),
+    ("intellij-idea", "IntelliJ IDEA Ultimate (Java, Kotlin, Spring…)", "ide java kotlin jetbrains"),
+    ("intellij-idea-ce", "IntelliJ IDEA Community Edition", "ide java kotlin jetbrains"),
+    ("pycharm", "PyCharm Professional", "ide python jetbrains"),
+    ("pycharm-ce", "PyCharm Community Edition", "ide python jetbrains"),
+    ("webstorm", "WebStorm: JavaScript and TypeScript IDE", "ide web jetbrains"),
+    ("phpstorm", "PhpStorm: PHP IDE", "ide php jetbrains"),
+    ("goland", "GoLand: Go IDE", "ide go jetbrains"),
+    ("rubymine", "RubyMine: Ruby and Rails IDE", "ide ruby jetbrains"),
+    ("clion", "CLion: C and C++ IDE", "ide cpp jetbrains"),
+    ("rider", "Rider: .NET and game dev IDE", "ide dotnet jetbrains"),
+    ("rustrover", "RustRover: Rust IDE", "ide rust jetbrains"),
+    ("datagrip", "DataGrip: databases and SQL IDE", "ide database jetbrains"),
+    ("dataspell", "DataSpell: data science IDE", "ide data jetbrains"),
+    ("fleet", "Fleet: lightweight multi-language editor", "ide jetbrains"),
+    ("writerside", "Writerside: technical documentation IDE", "ide docs jetbrains"),
+    ("android-studio", "Android Studio (built on IntelliJ)", "ide mobile jetbrains"),
+    ("font-jetbrains-mono", "JetBrains Mono typeface for code", "font jetbrains"),
+    ("font-jetbrains-mono-nerd-font", "JetBrains Mono with Nerd Font icons", "font terminal jetbrains"),
+], profiles=V)
+formula(C_JB, [
+    ("kotlin", "Kotlin programming language", "kotlin java jetbrains"),
+    ("ktlint", "Kotlin linter and formatter", "kotlin lint jetbrains"),
+    ("detekt", "Static code analysis for Kotlin", "kotlin lint jetbrains"),
+    ("jbang", "Run Java as scripts", "java jetbrains"),
+], profiles=V)
+
+KITS.extend([
+    Kit("Microsoft Developer", "VS Code, .NET, PowerShell, Azure and GitHub", VENDOR,
+        ("cask:visual-studio-code", "formula:dotnet", "formula:powershell", "cask:azure-cli",
+         "cask:azure-data-studio", "formula:gh", "formula:typescript")),
+    Kit("Microsoft 365", "Office apps, Teams, OneDrive and remote desktop", VENDOR,
+        ("cask:microsoft-office", "cask:microsoft-teams", "cask:onedrive", "cask:microsoft-edge",
+         "cask:windows-app")),
+    Kit("Oracle Java & Databases", "Oracle JDK, GraalVM, MySQL and SQLcl", VENDOR,
+        ("cask:oracle-jdk", "cask:graalvm-jdk", "formula:mysql", "cask:mysql-shell", "cask:sqlcl",
+         "formula:oci-cli", "cask:virtualbox")),
+    Kit("iOS & macOS Developer", "Swift tooling, Xcode helpers and release automation", VENDOR,
+        ("formula:xcodes", "formula:swiftlint", "formula:swiftformat", "formula:xcodegen",
+         "formula:xcbeautify", "formula:fastlane", "formula:cocoapods", "cask:sf-symbols",
+         "cask:proxyman")),
+    Kit("Open Source Desktop", "A full desktop of open-source apps", VENDOR,
+        ("cask:libreoffice", "cask:firefox", "cask:thunderbird", "cask:vlc", "cask:gimp",
+         "cask:inkscape", "cask:keepassxc", "cask:obs")),
+    Kit("Red Hat Containers & OpenShift", "Podman, OpenShift CLI, Ansible and GitOps", VENDOR,
+        ("formula:podman", "cask:podman-desktop", "formula:skopeo", "formula:openshift-cli",
+         "formula:operator-sdk", "formula:ansible", "formula:ansible-lint", "formula:kubernetes-cli",
+         "formula:helm")),
+    Kit("JetBrains IDEs", "Toolbox plus the most popular IDEs", VENDOR,
+        ("cask:jetbrains-toolbox", "cask:intellij-idea-ce", "cask:pycharm-ce", "cask:webstorm",
+         "cask:goland", "cask:datagrip", "cask:font-jetbrains-mono")),
+])
+
 # Merge duplicate keys (same package listed in several areas): keep the first, union profiles/tags.
 _merged: dict = {}
 for _it in ITEMS:
@@ -1075,7 +1280,9 @@ for _it in ITEMS:
         _o = _merged[_it.key]
         _merged[_it.key] = Item(_o.name, _o.kind, _o.category, _o.desc,
                                 tuple(dict.fromkeys(_o.profiles + _it.profiles)), _o.platforms,
-                                tuple(dict.fromkeys(_o.tags + _it.tags)), _o.tap or _it.tap)
+                                tuple(dict.fromkeys(_o.tags + _it.tags)), _o.tap or _it.tap,
+                                tuple(dict.fromkeys(_o.groups + _it.groups
+                                                    + ((_it.category,) if _it.category != _o.category else ()))))
     else:
         _merged[_it.key] = _it
 ITEMS[:] = list(_merged.values())
@@ -1083,8 +1290,7 @@ ITEMS[:] = list(_merged.values())
 # Existing Dev tooling is also useful for SRE/Cloud profiles.
 for _i, _it in enumerate(ITEMS):
     if _it.category in (C_CONT, C_API) and SRE not in _it.profiles:
-        ITEMS[_i] = Item(_it.name, _it.kind, _it.category, _it.desc, _it.profiles + (SRE,),
-                         _it.platforms, _it.tags, _it.tap)
+        ITEMS[_i] = _dc_replace(_it, profiles=_it.profiles + (SRE,))
 
 CATEGORIES_DEV = [C_TERM, C_EDIT, C_GIT, C_LANG, C_NODE, C_GO, C_NET, C_JAVA, C_SHELL, C_MAIN,
                   C_CONT, C_DB, C_API, C_UTIL, C_FONT]
@@ -1098,6 +1304,7 @@ PROFILE_CATEGORIES = {
     DE: [C_DE],
     NET: [C_NETD, C_REMOTE],
     SEC: [C_PEN, C_APPSEC, C_REV, C_PRIV],
+    VENDOR: [C_MS, C_ORA, C_APPLE, C_OSS, C_RH, C_JB],
     DESIGN: [C_DWEB, C_DGFX, C_DVID],
     DJ: [C_DJ],
     OFFICE: [C_OFFICE, "Communication & Cloud Drive", "Documents & PDF Tools"],
@@ -1121,6 +1328,8 @@ ESSENTIALS = {
     DESIGN: ["cask:figma", "cask:inkscape", "cask:gimp", "cask:kdenlive", "formula:ffmpeg"],
     DJ: ["cask:mixxx", "cask:audacity", "cask:blackhole-2ch", "cask:reaper", "formula:ffmpeg"],
     OFFICE: ["cask:libreoffice", "cask:obsidian", "cask:slack", "cask:zoom", "cask:rectangle"],
+    VENDOR: ["cask:visual-studio-code", "cask:jetbrains-toolbox", "formula:podman", "formula:swiftlint",
+             "cask:oracle-jdk", "cask:libreoffice", "cask:firefox", "formula:dotnet"],
     GAMER: ["cask:steam", "cask:discord", "cask:obs", "cask:heroic", "cask:retroarch",
             "formula:btop", "cask:stats", "cask:vlc"],
 }

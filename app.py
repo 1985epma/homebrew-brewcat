@@ -105,7 +105,8 @@ EXTRA_CAT = "Homebrew search"
 PROFILES = [("All", None), ("Dev", cd.DEV), ("SRE / Cloud", cd.SRE), ("QA", cd.QA),
             ("Data Scientist", cd.DS), ("Data Engineer", cd.DE), ("Support & Network", cd.NET),
             ("Security", cd.SEC), ("Design (web, video, graphics)", cd.DESIGN), ("DJ / Music", cd.DJ),
-            ("Office", cd.OFFICE), ("Gamer", cd.GAMER)]
+            ("Office", cd.OFFICE), ("Vendors (Microsoft, Oracle, Apple, Open Source, Red Hat, JetBrains)", cd.VENDOR),
+            ("Gamer", cd.GAMER)]
 
 
 def find_brew() -> Optional[str]:
@@ -537,7 +538,7 @@ class App(tk.Tk):
             pairs = [(i, "") for i in self.extra if self.platform.get() in i.platforms]
         else:
             pairs = [(i, "") for i in sorted(cd.ITEMS, key=lambda x: x.name)
-                     if (cat == ALL or i.category == cat) and self._matches(i)]
+                     if (cat == ALL or i.category == cat or cat in i.groups) and self._matches(i)]
             if cat == ALL:
                 pairs += [(i, "") for i in self.extra if self.platform.get() in i.platforms]
         for item, reason in pairs:
