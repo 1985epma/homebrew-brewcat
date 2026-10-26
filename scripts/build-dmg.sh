@@ -2,7 +2,7 @@
 # Build dist/brewcat-<version>.dmg containing a launcher-style brewcat.app (macOS only).
 set -euo pipefail
 cd "$(dirname "$0")/.."
-VERSION="${1:-0.1.2.3}"
+VERSION="${1:-0.1.2.4}"
 APP="dist/brewcat.app"
 rm -rf dist && mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
