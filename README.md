@@ -34,7 +34,7 @@ A visual catalog (Python + Tkinter) of Homebrew packages for developers and game
 
 Installs to `~/.local/share/brewcat`, adds a `brewcat` command and a desktop entry.
 
-**Build the .dmg yourself (macOS):** `./scripts/build-dmg.sh 0.1.2.1`
+**Build the .dmg yourself (macOS):** `./scripts/build-dmg.sh 0.1.2.2`
 
 ## Run from source
 
