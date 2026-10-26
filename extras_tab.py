@@ -104,7 +104,7 @@ def scan_skills(root: Path, depth: int = 4) -> List[Path]:
         if level >= depth:
             return
         for c in sorted(d.iterdir()):
-            if c.is_dir() and c.name not in SKIP_DIRS:
+            if c.is_dir() and not c.is_symlink() and c.name not in SKIP_DIRS:
                 walk(c, level + 1)
 
     walk(root, 0)
@@ -112,12 +112,35 @@ def scan_skills(root: Path, depth: int = 4) -> List[Path]:
 
 
 def parse_repo(spec: str) -> Tuple[str, Optional[str], str]:
-    """'owner/repo', a GitHub URL or a /tree/<branch>/<sub> URL → (clone_url, branch, subpath)."""
+    """'owner/repo', a GitHub URL or a /tree/<branch>/<sub> URL → (clone_url, branch, subpath).
+
+    Raises ValueError for anything that is not a plain GitHub shorthand or an http(s)/ssh git URL, so
+    user-typed text can never be interpreted by git as an option or an exotic transport (ext::, file:)."""
     spec = spec.strip().rstrip("/")
+    if not spec or spec.startswith("-") or any(c in spec for c in " \t\r\n\0"):
+        raise ValueError("Invalid source: use owner/repo, a GitHub URL or a local folder")
     m = re.match(r"(?:https?://github\.com/)?([\w.-]+/[\w.-]+?)(?:\.git)?(?:/tree/([^/]+)(?:/(.*))?)?$", spec)
-    if not m:
+    if m:
+        branch = m.group(2)
+        if branch and branch.startswith("-"):
+            raise ValueError("Invalid branch name")
+        return f"https://github.com/{m.group(1)}.git", branch, m.group(3) or ""
+    if re.match(r"(https://|ssh://|git@)[\w.@:/~-]+$", spec):
         return spec, None, ""
-    return f"https://github.com/{m.group(1)}.git", m.group(2), m.group(3) or ""
+    raise ValueError("Invalid source: use owner/repo, a GitHub URL or a local folder")
+
+
+def unsafe_links(folder: Path) -> List[Path]:
+    """Symlinks inside `folder` that point outside of it (they could expose files such as ~/.ssh keys)."""
+    root = folder.resolve()
+    bad = []
+    for p in folder.rglob("*"):
+        if p.is_symlink():
+            try:
+                p.resolve().relative_to(root)
+            except (ValueError, OSError, RuntimeError):
+                bad.append(p)
+    return bad
 
 
 # ───────────────────────── widgets ─────────────────────────
@@ -207,13 +230,15 @@ class SkillsTab(ttk.Frame):
                 else:
                     url, branch, sub = parse_repo(spec)
                     tmp = tempfile.mkdtemp(prefix="brewcat-skills-")
-                    cmd = ["git", "clone", "--depth", "1"] + (["--branch", branch] if branch else []) + [url, tmp]
+                    cmd = ["git", "clone", "--depth", "1"] + (["--branch", branch] if branch else []) \
+                        + ["--", url, tmp]
                     r = subprocess.run(cmd, capture_output=True, text=True, timeout=180,
                                        env=dict(os.environ, GIT_TERMINAL_PROMPT="0"))
                     if r.returncode:
                         raise RuntimeError(r.stderr.strip() or "git clone failed")
                     self.tmp = tmp
-                    root = Path(tmp) / sub
+                    root = (Path(tmp) / sub).resolve()
+                    root.relative_to(Path(tmp).resolve())  # a "../" sub-path must not leave the clone
                 found = scan_skills(root)
                 items = [(f, *parse_skill(f)) for f in found]
                 self.app.log_q.put(("call", lambda: self.show(items)))
@@ -256,6 +281,11 @@ class SkillsTab(ttk.Frame):
             return
         for iid in sel:
             folder = self.skills[iid]
+            links = unsafe_links(folder)
+            if links:
+                self.app._log("err", f"✗ {folder.name}: skipped, symlink(s) point outside the skill folder: "
+                                     f"{', '.join(str(l.relative_to(folder)) for l in links[:5])}\n")
+                continue
             for k in targets:
                 dest = skill_root(k, scope, proj) / folder.name
                 if dest.exists() and not messagebox.askyesno("Overwrite", f"{dest}\nalready exists. Replace it?"):
@@ -264,7 +294,7 @@ class SkillsTab(ttk.Frame):
                     if dest.exists():
                         shutil.rmtree(dest)
                     dest.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copytree(folder, dest, ignore=shutil.ignore_patterns(".git"))
+                    shutil.copytree(folder, dest, symlinks=True, ignore=shutil.ignore_patterns(".git"))
                     self.app._log("info", f"✓ {folder.name} → {dest}\n")
                 except OSError as exc:
                     self.app._log("err", f"✗ {folder.name} → {dest}: {exc}\n")

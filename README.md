@@ -39,7 +39,7 @@ Recent Homebrew versions refuse to load formulae from third-party taps until you
 
 Installs to `~/.local/share/brewcat`, adds a `brewcat` command and a desktop entry.
 
-**Build the .dmg yourself (macOS):** `./scripts/build-dmg.sh 0.1.2.2`
+**Build the .dmg yourself (macOS):** `./scripts/build-dmg.sh 0.1.2.3`
 
 ## Run from source
 

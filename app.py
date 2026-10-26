@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import platform
 import queue
+import re
 import shutil
 import subprocess
 import sys
@@ -111,6 +112,34 @@ PROFILES = [("All", None), ("Dev", cd.DEV), ("SRE / Cloud", cd.SRE), ("QA", cd.Q
 
 def find_brew() -> Optional[str]:
     return shutil.which("brew") or next((p for p in BREW_CANDIDATES if os.path.exists(p)), None)
+
+
+def ensure_askpass() -> Optional[str]:
+    """Create a SUDO_ASKPASS helper. brew runs without a terminal, so casks that need `sudo`
+    (Microsoft Office, drivers, pkg installers…) would hang; with this helper sudo asks for the
+    password in a native dialog instead."""
+    base = os.path.expanduser("~/Library/Application Support/brewcat" if sys.platform == "darwin"
+                              else "~/.local/share/brewcat")
+    path = os.path.join(base, "askpass.sh")
+    if sys.platform == "darwin":
+        body = ("#!/bin/bash\n"
+                "/usr/bin/osascript -e 'text returned of (display dialog "
+                "\"brewcat: enter your macOS password to continue the installation\" "
+                "default answer \"\" with hidden answer with icon caution with title \"brewcat\")'\n")
+    else:
+        body = ("#!/bin/bash\n"
+                "if command -v zenity >/dev/null; then exec zenity --password --title=brewcat\n"
+                "elif command -v kdialog >/dev/null; then exec kdialog --password 'brewcat: enter your password'\n"
+                "else exit 1; fi\n")
+    try:
+        os.makedirs(base, exist_ok=True)
+        if not os.path.exists(path) or open(path).read() != body:
+            with open(path, "w") as fh:
+                fh.write(body)
+        os.chmod(path, 0o700)
+        return path
+    except OSError:
+        return None
 
 
 def apple_silicon() -> bool:
@@ -351,6 +380,11 @@ class App(tk.Tk):
     def brew_cmd(self, *args: str) -> List[str]:
         """Run brew in the architecture of its prefix. If this app is launched under Rosetta, a plain
         `brew` in /opt/homebrew fails with "Cannot install under Rosetta 2 in ARM default prefix"."""
+        if args and args[0] in ("install", "uninstall", "reinstall"):
+            # Package names come after "--" so a name can never be parsed as a brew option.
+            opts = [a for a in args[1:] if a.startswith("-")]
+            names = [a for a in args[1:] if not a.startswith("-")]
+            args = (args[0], *opts, "--", *names)
         if apple_silicon() and os.path.exists("/usr/bin/arch"):
             if self.brew.startswith("/opt/homebrew"):
                 return ["/usr/bin/arch", "-arm64", self.brew, *args]
@@ -436,6 +470,8 @@ class App(tk.Tk):
             return  # stale result
         items = []
         for kind, name in sorted(found, key=lambda t: (t[1], t[0]))[:60]:
+            if not re.fullmatch(r"[\w][\w.+@/-]*", name):
+                continue  # ignore anything that is not a plausible package name
             tap = ""
             if "/" in name:  # tap-qualified result: user/repo/name
                 tap, name = name.rsplit("/", 1)
@@ -746,6 +782,9 @@ class App(tk.Tk):
         self._on_select()
         env = dict(os.environ, HOMEBREW_NO_ANALYTICS="1", HOMEBREW_NO_COLOR="1",
                    HOMEBREW_NO_ENV_HINTS="1", NONINTERACTIVE="1")
+        askpass = ensure_askpass()
+        if askpass:
+            env["SUDO_ASKPASS"] = askpass
 
         def worker() -> None:
             for args in cmds:

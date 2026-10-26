@@ -1,6 +1,6 @@
 """Help text for brewcat, shared by `brewcat --help` and the in-app Help window."""
 
-VERSION = "0.1.2.2"
+VERSION = "0.1.2.3"
 
 HELP = f"""\
 brewcat {VERSION} — a visual catalog of Homebrew packages, skills and MCP servers
@@ -58,7 +58,8 @@ TROUBLESHOOTING
                           (or run: softwareupdate --install-rosetta --agree-to-license).
   Blank window on macOS   The system Python's Tk 8.5 is broken: brew install python-tk
   "brew NOT found"        Install Homebrew from https://brew.sh
-  Cask asks for a password  Run the shown `brew install --cask …` command in a terminal.
+  Cask needs a password   brewcat opens a native password dialog (sudo askpass). If you cancel, the
+                          install fails; you can also run the `brew install --cask …` command in a terminal.
 
 LINKS
   https://github.com/1985epma/homebrew-brewcat   (MIT License)
