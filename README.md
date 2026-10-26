@@ -47,7 +47,40 @@ Recent Homebrew versions refuse to load formulae from third-party taps until you
 Installs to `~/.local/share/brewcat`, adds a `brewcat` command and a desktop entry. It installs the latest released tag (not the moving `main` branch); pin a version with `BREWCAT_REF=v0.1.2.6`.
 Review the script before piping it to `bash`: https://github.com/1985epma/homebrew-brewcat/blob/main/install.sh
 
-**Build the .dmg yourself (macOS):** `./scripts/build-dmg.sh 0.1.2.6`
+**Build the .dmg yourself (macOS):** `./scripts/build-dmg.sh`
+
+## Command line
+
+    brewcat --help        full help
+    brewcat --version     version and OS
+    brewcat doctor        checks Python/Tk, Homebrew, Rosetta, tap trust, app bundle… and prints how to fix them
+    brewcat doctor --json machine-readable (exit code 1 if a check fails)
+    brewcat search terraform -p sre          search the curated catalog without opening a window
+    brewcat list -p security --not-installed list what you still miss in a profile (✓ = installed)
+    brewcat kits -p sre                      list kits (brewcat kits "git pro" shows one kit)
+    brewcat install "terraform + aws" -n     plan only; add --yes to skip the confirmation
+    brewcat export "git pro" -o Brewfile     write a Brewfile (brew bundle --file=Brewfile)
+    brewcat profiles                         profile names for -p (dev, sre, qa, security, gamer…)
+    brewcat --install-app macOS: (re)create ~/Applications/brewcat.app
+
+Exit codes: 0 success, 1 nothing found / a check or operation failed, 2 invalid usage.
+`--json` is available on `search`, `list`, `kits` and `doctor`; data goes to stdout, messages to stderr.
+
+## Development
+
+    python -m pip install pytest ruff
+    ruff check . && pytest          # 51 tests; the GUI smoke test needs a display (xvfb on Linux)
+    python scripts/validate_catalog.py   # every catalog package must still exist in Homebrew
+
+CI runs the same on Linux and macOS; a weekly job re-validates the catalog against Homebrew's API.
+
+## Releasing (maintainers)
+
+    scripts/release.sh 0.1.3                 # dry run: checks everything and prints the plan
+    scripts/release.sh 0.1.3 --yes --notes "What changed"
+
+The version lives in `help_text.py` only; the script bumps it, tags, builds the `.dmg`, creates the GitHub
+release and sets the formula and cask sha256 from what GitHub actually serves. Tags are never moved.
 
 ## Run from source
 

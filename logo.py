@@ -78,7 +78,10 @@ def write_png(path: str, size: int = 512, ss: int = 3) -> None:
                             if hit:
                                 col = _rgb(c)
                     if col:
-                        acc[0] += col[0]; acc[1] += col[1]; acc[2] += col[2]; acc[3] += 255
+                        acc[0] += col[0]
+                        acc[1] += col[1]
+                        acc[2] += col[2]
+                        acc[3] += 255
             n = ss * ss
             a = acc[3] // n
             k = max(acc[3] // 255, 1)

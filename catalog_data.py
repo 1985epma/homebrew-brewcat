@@ -5,7 +5,7 @@ Formulae work on macOS and Linux; casks (GUI apps) are macOS only.
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace as _dc_replace
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 DEV = "dev"
 GAMER = "gamer"
@@ -104,7 +104,6 @@ cask(C_TERM, [
     ("ghostty", "Fast, native, GPU-accelerated terminal", "terminal"),
     ("wezterm", "Cross-platform terminal configured in Lua", "terminal"),
     ("kitty", "GPU-accelerated terminal", "terminal"),
-    ("alacritty", "Minimalist, performance-focused terminal", "terminal"),
 ])
 
 C_EDIT = "Editors & IDEs"
@@ -279,7 +278,6 @@ C_COMP = "Compatibility (Windows)"
 cask(C_COMP, [
     ("crossover", "Run Windows apps and games on Mac (commercial Wine)", "game wine"),
     ("whisky", "Wine wrapper to run Windows games on Mac (archived project)", "game wine"),
-    ("wine-stable", "Windows compatibility layer (stable Wine)", "game wine"),
 ], profiles=G)
 formula(C_COMP, [
     ("winetricks", "Install libraries and tweaks for Wine", "game wine"),
@@ -288,14 +286,11 @@ formula(C_COMP, [
 C_EMU = "Emulators"
 cask(C_EMU, [
     ("retroarch", "Unified frontend for hundreds of consoles (libretro)", "game retro emulator"),
-    ("openemu", "Multi-system emulation with a native Mac interface", "game retro emulator"),
     ("dolphin", "GameCube and Wii emulator", "game retro emulator"),
     ("pcsx2", "PlayStation 2 emulator", "game retro emulator"),
     ("ppsspp-emulator", "PSP emulator", "game retro emulator"),
     ("mgba-app", "Game Boy Advance emulator", "game retro emulator"),
-    ("melonds", "Nintendo DS emulator", "game retro emulator"),
     ("cemu", "Wii U emulator", "game retro emulator"),
-    ("flycast", "Dreamcast emulator", "game retro emulator"),
 ], profiles=G)
 formula(C_EMU, [
     ("mame", "Arcade and classic systems emulator", "game retro emulator"),
@@ -376,7 +371,7 @@ KITS: List[Kit] = [
         ("cask:steam", "cask:epic-games", "cask:heroic", "cask:discord", "cask:obs",
          "cask:stats")),
     Kit("Retro Gaming", "Emulators for classics from many consoles", GAMER,
-        ("cask:retroarch", "cask:openemu", "cask:dolphin", "cask:ppsspp-emulator",
+        ("cask:retroarch", "cask:dolphin", "cask:ppsspp-emulator",
          "cask:mgba-app", "formula:scummvm", "formula:dosbox-staging")),
     Kit("Windows Games on Mac", "Compatibility layers to run Windows games", GAMER,
         ("cask:crossover", "cask:whisky", "formula:winetricks", "cask:steam")),
@@ -640,7 +635,6 @@ formula(C_QA_AUTO, [
     ("sonar-scanner", "SonarQube/SonarCloud code quality scanner", "qa lint"),
 ], profiles=(QA,))
 cask(C_QA_AUTO, [
-    ("chromedriver", "WebDriver for Chrome", "qa selenium"),
     ("maestro", "Simple UI testing for mobile and web", "qa mobile"),
     ("android-studio", "Android IDE and emulators", "qa mobile"),
     ("google-chrome", "Chrome browser for testing", "qa web"),
@@ -740,7 +734,6 @@ cask(C_DGFX, [
     ("gimp", "Raster image editor", "design graphics"),
     ("krita", "Digital painting and illustration", "design graphics"),
     ("affinity", "Affinity Designer, Photo and Publisher", "design graphics"),
-    ("darktable", "RAW photo workflow", "design photo"),
     ("rawtherapee", "RAW photo processing", "design photo"),
     ("scribus", "Desktop publishing and page layout", "design print"),
     ("xnviewmp", "Image viewer and batch converter", "design graphics"),
@@ -784,7 +777,6 @@ cask(C_DJ, [
     ("reaper", "Lightweight, powerful DAW", "dj music production"),
     ("bitwig-studio", "DAW for live performance and production", "dj music production"),
     ("ableton-live-lite", "Ableton Live Lite", "dj music production"),
-    ("lmms", "Open-source music production studio", "music production"),
     ("vcv-rack", "Virtual modular synthesizer", "music production"),
     ("sonic-pi", "Live-code music", "music production"),
     ("ocenaudio", "Easy audio editor", "dj audio"),
@@ -875,7 +867,6 @@ cask(C_DE, [
     ("clickhouse", "Fast open-source columnar database", "database data"),
     ("dbeaver-community", "Universal database client", "database sql"),
     ("datagrip", "JetBrains database IDE", "database sql"),
-    ("azure-data-studio", "Cross-platform database tool", "database sql"),
     ("redis-insight", "GUI for Redis", "database"),
     ("tableplus", "Modern, native database client", "database sql"),
 ], profiles=(DE,))
@@ -905,7 +896,6 @@ formula(C_NETD, [
 ], profiles=(NET,))
 cask(C_NETD, [
     ("wireshark-app", "Network packet analyzer", "network security"),
-    ("angry-ip-scanner", "Fast IP and port scanner", "network"),
 ], profiles=(NET,))
 C_REMOTE = "Remote Access & VPN"
 formula(C_REMOTE, [
@@ -958,8 +948,6 @@ formula(C_PEN, [
 cask(C_PEN, [
     ("mitmproxy", "Inspect and modify HTTP(S) traffic", "api http security"),
     ("burp-suite", "Web application security testing", "security web"),
-    ("zap", "OWASP ZAP web app scanner", "security web"),
-    ("metasploit", "Penetration testing framework", "security exploit"),
     ("wireshark-app", "Network packet analyzer", "network security"),
 ], profiles=(SEC,))
 C_APPSEC = "AppSec & Hardening"
@@ -1013,7 +1001,7 @@ cask(C_PRIV, [
 # ───────────────────── Kits for the new profiles ─────────────────────
 KITS.extend([
     Kit("QA Web Automation", "Selenium, browsers, Lighthouse and API checks", QA,
-        ("formula:selenium-server", "formula:geckodriver", "cask:chromedriver", "cask:google-chrome",
+        ("formula:selenium-server", "formula:geckodriver", "cask:google-chrome",
          "cask:firefox", "formula:lighthouse", "formula:newman", "formula:hurl", "cask:bruno")),
     Kit("QA Mobile", "Appium, Maestro and Android tooling", QA,
         ("formula:appium", "cask:maestro", "cask:android-studio", "formula:pytest")),
@@ -1029,7 +1017,7 @@ KITS.extend([
         ("cask:figma", "cask:responsively", "cask:imageoptim", "cask:colorsnapper", "formula:svgo",
          "formula:webp", "cask:font-inter")),
     Kit("Graphic Designer", "Vector, raster, photo and 3D", DESIGN,
-        ("cask:inkscape", "cask:gimp", "cask:krita", "cask:darktable", "cask:blender",
+        ("cask:inkscape", "cask:gimp", "cask:krita", "cask:blender",
          "formula:imagemagick")),
     Kit("Video Creator", "Edit, convert and publish video", DESIGN,
         ("cask:kdenlive", "cask:shotcut", "cask:handbrake-app", "cask:obs", "cask:iina",
@@ -1038,7 +1026,7 @@ KITS.extend([
         ("cask:mixxx", "cask:audacity", "cask:blackhole-2ch", "cask:audio-hijack", "formula:ffmpeg",
          "formula:sox", "formula:lame", "formula:flac")),
     Kit("Music Producer", "DAWs and synths for production", DJ,
-        ("cask:reaper", "cask:bitwig-studio", "cask:lmms", "cask:vcv-rack", "cask:sonic-pi",
+        ("cask:reaper", "cask:bitwig-studio", "cask:vcv-rack", "cask:sonic-pi",
          "cask:ocenaudio")),
     Kit("Data Science Lab", "Python, notebooks and analysis tools", DS,
         ("formula:python@3.12", "formula:uv", "formula:jupyterlab", "formula:numpy", "formula:scipy",
@@ -1061,7 +1049,7 @@ KITS.extend([
          "cask:windows-app")),
     Kit("Pentest Starter", "Recon, scanning and web testing", SEC,
         ("formula:nmap", "formula:amass", "formula:subfinder", "formula:httpx", "formula:nuclei",
-         "formula:ffuf", "formula:gobuster", "cask:burp-suite", "cask:zap")),
+         "formula:ffuf", "formula:gobuster", "cask:burp-suite")),
     Kit("AppSec & Secrets", "Find vulnerabilities and leaked secrets in code", SEC,
         ("formula:semgrep", "formula:bandit", "formula:gitleaks", "formula:trufflehog", "formula:trivy",
          "formula:checkov", "formula:sops")),
@@ -1076,7 +1064,6 @@ C_MS = "Microsoft"
 cask(C_MS, [
     ("visual-studio-code", "Extensible code editor from Microsoft", "editor microsoft"),
     ("azure-cli", "Official Azure CLI", "cloud azure microsoft"),
-    ("azure-data-studio", "Cross-platform database tool for SQL Server and Azure", "database sql microsoft"),
     ("microsoft-azure-storage-explorer", "Manage Azure storage accounts", "cloud azure microsoft"),
     ("dotnet-sdk", ".NET SDK installer package", "dotnet csharp microsoft"),
     ("github", "GitHub Desktop", "git github microsoft"),
@@ -1176,12 +1163,10 @@ cask(C_OSS, [
     ("element", "Matrix chat client", "chat opensource"),
     ("nextcloud", "Self-hosted cloud sync client", "cloud opensource"),
     ("jellyfin", "Free media server", "media opensource"),
-    ("qbittorrent", "BitTorrent client", "network opensource"),
     ("calibre", "E-book manager and converter", "office opensource"),
     ("zotero", "Reference manager for research", "office research opensource"),
     ("joplin", "Markdown notes with sync", "office notes opensource"),
     ("godot", "Open-source 2D/3D game engine", "gamedev opensource"),
-    ("darktable", "RAW photo workflow", "design photo opensource"),
     ("tor-browser", "Tor Browser for privacy", "browser security opensource"),
     ("ghostty", "Fast, native, GPU-accelerated terminal", "terminal opensource"),
 ], profiles=V)
@@ -1215,7 +1200,6 @@ formula(C_RH, [
 ], profiles=V)
 cask(C_RH, [
     ("podman-desktop", "GUI for Podman and Kubernetes", "containers redhat"),
-    ("fedora-media-writer", "Write Fedora images to USB drives", "linux redhat"),
 ], profiles=V)
 
 C_JB = "JetBrains"
@@ -1233,9 +1217,6 @@ cask(C_JB, [
     ("rider", "Rider: .NET and game dev IDE", "ide dotnet jetbrains"),
     ("rustrover", "RustRover: Rust IDE", "ide rust jetbrains"),
     ("datagrip", "DataGrip: databases and SQL IDE", "ide database jetbrains"),
-    ("dataspell", "DataSpell: data science IDE", "ide data jetbrains"),
-    ("fleet", "Fleet: lightweight multi-language editor", "ide jetbrains"),
-    ("writerside", "Writerside: technical documentation IDE", "ide docs jetbrains"),
     ("android-studio", "Android Studio (built on IntelliJ)", "ide mobile jetbrains"),
     ("font-jetbrains-mono", "JetBrains Mono typeface for code", "font jetbrains"),
     ("font-jetbrains-mono-nerd-font", "JetBrains Mono with Nerd Font icons", "font terminal jetbrains"),
@@ -1249,8 +1230,7 @@ formula(C_JB, [
 
 KITS.extend([
     Kit("Microsoft Developer", "VS Code, .NET, PowerShell, Azure and GitHub", VENDOR,
-        ("cask:visual-studio-code", "formula:dotnet", "formula:powershell", "cask:azure-cli",
-         "cask:azure-data-studio", "formula:gh", "formula:typescript")),
+        ("cask:visual-studio-code", "formula:dotnet", "formula:powershell", "cask:azure-cli", "formula:gh", "formula:typescript")),
     Kit("Microsoft 365", "Office apps, Teams, OneDrive and remote desktop", VENDOR,
         ("cask:microsoft-office", "cask:microsoft-teams", "cask:onedrive", "cask:microsoft-edge",
          "cask:windows-app")),
@@ -1320,7 +1300,7 @@ ESSENTIALS = {
           "formula:starship", "formula:gh", "formula:btop"],
     SRE: ["formula:kubernetes-cli", "formula:k9s", "formula:terraform", "formula:awscli",
           "cask:gcloud-cli", "cask:azure-cli", "formula:helm", "formula:jq", "formula:trivy"],
-    QA: ["cask:google-chrome", "cask:postman", "formula:k6", "cask:chromedriver", "formula:hurl"],
+    QA: ["cask:google-chrome", "cask:postman", "formula:k6", "formula:hurl"],
     DS: ["formula:python@3.12", "formula:uv", "formula:jupyterlab", "formula:duckdb", "formula:visidata"],
     DE: ["formula:apache-spark", "formula:kafka", "formula:duckdb", "formula:postgresql@16", "formula:awscli"],
     NET: ["formula:nmap", "formula:mtr", "cask:wireshark-app", "formula:iperf3", "cask:termius"],
@@ -1333,3 +1313,53 @@ ESSENTIALS = {
     GAMER: ["cask:steam", "cask:discord", "cask:obs", "cask:heroic", "cask:retroarch",
             "formula:btop", "cask:stats", "cask:vlc"],
 }
+
+
+# ───────────────────── Lookup helpers (used by the GUI-less CLI and the tests) ─────────────────────
+PROFILE_SLUGS = {
+    "dev": DEV, "sre": SRE, "qa": QA, "datascience": DS, "dataeng": DE, "network": NET,
+    "security": SEC, "design": DESIGN, "dj": DJ, "office": OFFICE, "vendors": VENDOR, "gamer": GAMER,
+}
+
+
+def find_items(query: str = "", profile=None, platform=None, category=None) -> List[Item]:
+    """Curated items matching every word of `query` (name, description, category, tags)."""
+    words = query.lower().split()
+    out = []
+    for i in ITEMS:
+        if profile and profile not in i.profiles:
+            continue
+        if platform and platform not in i.platforms:
+            continue
+        if category and category != i.category and category not in i.groups:
+            continue
+        hay = " ".join((i.name, i.desc, i.category, *i.tags)).lower()
+        if all(w in hay for w in words):
+            out.append(i)
+    return sorted(out, key=lambda i: (i.name, i.kind))
+
+
+def _slug(text: str) -> str:
+    return "-".join("".join(c if c.isalnum() else " " for c in text.lower()).split())
+
+
+def find_kit(name: str) -> Optional[Kit]:
+    """Kit by exact name or slug, or by a unique slug prefix. None when missing or ambiguous."""
+    want = _slug(name)
+    for k in KITS:
+        if k.name.lower() == name.lower() or _slug(k.name) == want:
+            return k
+    hits = [k for k in KITS if _slug(k.name).startswith(want)] if want else []
+    return hits[0] if len(hits) == 1 else None
+
+
+def resolve_packages(name: str) -> List[Item]:
+    """Items called `name` ("kind:name" selects one kind)."""
+    if ":" in name:
+        item = BY_KEY.get(name)
+        return [item] if item else []
+    return [i for i in ITEMS if i.name == name]
+
+
+def brewfile_lines(items) -> List[str]:
+    return [f'{"cask" if i.kind == "cask" else "brew"} "{i.full_name}"' for i in items]

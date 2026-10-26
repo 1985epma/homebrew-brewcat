@@ -6,7 +6,6 @@ import os
 import platform
 import queue
 import re
-import shutil
 import subprocess
 import sys
 import threading
@@ -16,19 +15,14 @@ from tkinter import filedialog, messagebox, ttk
 from typing import Dict, List, Optional, Set, Tuple
 
 import catalog_data as cd
+import cli
+import launcher
+from brewenv import apple_silicon, brew_command, find_brew
 from help_text import HELP, VERSION, os_description
 from extras_tab import McpTab, SkillsTab
 from logo import draw_canvas as draw_logo
 
 os.environ.setdefault("TK_SILENCE_DEPRECATION", "1")
-
-if any(a in ("-h", "--help", "help") for a in sys.argv[1:]):
-    print(HELP)
-    sys.exit(0)
-if any(a in ("-V", "--version") for a in sys.argv[1:]):
-    print(f"brewcat {VERSION}\n{os_description()}")
-    sys.exit(0)
-
 
 def _reexec_with_modern_tk() -> None:
     """The system Python's Tk 8.5 renders a blank window on recent macOS; use Homebrew's python-tk."""
@@ -47,96 +41,10 @@ def _reexec_with_modern_tk() -> None:
           file=sys.stderr)
 
 
-_reexec_with_modern_tk()
 
 
-def _build_app_bundle(install_only: bool = False) -> Optional[str]:
-    """Create ~/Applications/brewcat.app (macOS) so brewcat shows up in Launchpad, Spotlight and Finder.
-    The bundle holds a copy of Python's launcher stub, so macOS shows "brewcat" and the cat icon in the
-    menu bar and Dock instead of "Python". Returns the path of the stub inside the bundle."""
-    here = os.path.dirname(os.path.abspath(__file__))
-    # Use brew's stable "opt" path so the app keeps working after `brew upgrade`.
-    stable = re.sub(r"/Cellar/brewcat/[^/]+/libexec$", "/opt/brewcat/libexec", here)
-    script = os.path.join(stable, "app.py")
-    stub = os.path.join(sys.base_prefix, "Resources/Python.app/Contents/MacOS/Python")
-    if not os.path.exists(stub) or not os.path.exists(script):
-        return None
-    # Normally a visible app in ~/Applications. When brewcat already runs from a /Applications copy (cask or
-    # .dmg), keep the helper bundle hidden so Launchpad doesn't show two brewcat apps.
-    base = os.path.expanduser("~/Library/Application Support/brewcat/brewcat.app"
-                              if os.environ.get("BREWCAT_HIDDEN_APP") else "~/Applications/brewcat.app")
-    macos = os.path.join(base, "Contents/MacOS")
-    py_exe, launcher = os.path.join(macos, "brewcat-python"), os.path.join(macos, "brewcat")
-    marker = os.path.join(base, "Contents/.brewcat-build")
-    want = f"{VERSION}|{os.path.realpath(stub)}|{script}"
-    if not (os.path.exists(py_exe) and os.path.exists(launcher) and os.path.exists(marker)
-            and open(marker).read() == want):
-        shutil.rmtree(base, ignore_errors=True)
-        os.makedirs(macos)
-        os.makedirs(os.path.join(base, "Contents/Resources"))
-        shutil.copy2(stub, py_exe)
-        for icns in (os.path.join(here, "assets/brewcat.icns"), os.path.join(here, "brewcat.icns")):
-            if os.path.exists(icns):
-                shutil.copy2(icns, os.path.join(base, "Contents/Resources/brewcat.icns"))
-                break
-        with open(launcher, "w") as fh:  # what Finder/Launchpad run on double-click
-            fh.write(f'#!/bin/bash\nexport BREWCAT_BRANDED=1 TK_SILENCE_DEPRECATION=1\n'
-                     f'exec "$(dirname "$0")/brewcat-python" "{script}" "$@"\n')
-        os.chmod(launcher, 0o755)
-        with open(os.path.join(base, "Contents/Info.plist"), "w") as fh:
-            fh.write("""<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-<key>CFBundleName</key><string>brewcat</string>
-<key>CFBundleDisplayName</key><string>brewcat</string>
-<key>CFBundleIdentifier</key><string>com.github.1985epma.brewcat</string>
-<key>CFBundleExecutable</key><string>brewcat</string>
-<key>CFBundleIconFile</key><string>brewcat</string>
-<key>CFBundlePackageType</key><string>APPL</string>
-<key>NSHighResolutionCapable</key><true/>
-</dict></plist>
-""")
-        with open(marker, "w") as fh:
-            fh.write(want)
-    return py_exe
-
-
-def _ensure_branded_launcher() -> None:
-    """Re-launch through ~/Applications/brewcat.app so the process is named "brewcat" (not "Python")."""
-    if sys.platform != "darwin" or os.environ.get("BREWCAT_BRANDED") or os.environ.get("BREWCAT_NO_APP"):
-        return
-    try:
-        exe = _build_app_bundle()
-        if exe:
-            os.environ["BREWCAT_BRANDED"] = "1"
-            os.execv(exe, [exe, os.path.join(os.path.dirname(os.path.abspath(__file__)), "app.py"),
-                           *sys.argv[1:]])
-    except Exception:  # noqa: BLE001 - branding is cosmetic; never block startup
-        os.environ["BREWCAT_BRANDED"] = "1"
-
-
-if "--install-app" in sys.argv[1:]:
-    if sys.platform != "darwin":
-        print("--install-app is only needed on macOS (the Linux installer adds a desktop entry).")
-        sys.exit(0)
-    try:
-        ok = _build_app_bundle()
-    except Exception as exc:  # noqa: BLE001
-        ok = None
-        print(f"Could not create the app: {exc}", file=sys.stderr)
-    print("Created ~/Applications/brewcat.app: open it from Launchpad or Spotlight." if ok else
-          "Could not create ~/Applications/brewcat.app.")
-    sys.exit(0 if ok else 1)
-
-_ensure_branded_launcher()
 
 SYSTEM = cd.MAC if platform.system() == "Darwin" else cd.LINUX
-BREW_CANDIDATES = [
-    "/opt/homebrew/bin/brew",
-    "/usr/local/bin/brew",
-    "/home/linuxbrew/.linuxbrew/bin/brew",
-    os.path.expanduser("~/.linuxbrew/bin/brew"),
-]
 
 ALL, SUGGEST, KITS, CART = "★ All", "✨ Suggestions", "📦 Kits", "🛒 My list"
 SEARCH = "🔎 Homebrew search"
@@ -146,10 +54,6 @@ PROFILES = [("All", None), ("Dev", cd.DEV), ("SRE / Cloud", cd.SRE), ("QA", cd.Q
             ("Security", cd.SEC), ("Design (web, video, graphics)", cd.DESIGN), ("DJ / Music", cd.DJ),
             ("Office", cd.OFFICE), ("Vendors (Microsoft, Oracle, Apple, Open Source, Red Hat, JetBrains)", cd.VENDOR),
             ("Gamer", cd.GAMER)]
-
-
-def find_brew() -> Optional[str]:
-    return shutil.which("brew") or next((p for p in BREW_CANDIDATES if os.path.exists(p)), None)
 
 
 def ensure_askpass() -> Optional[str]:
@@ -182,19 +86,6 @@ def ensure_askpass() -> Optional[str]:
         return path
     except OSError:
         return None
-
-
-def apple_silicon() -> bool:
-    """True on Apple Silicon hardware, even when this process runs translated under Rosetta."""
-    if sys.platform != "darwin":
-        return False
-    if platform.machine() == "arm64":
-        return True
-    try:
-        return subprocess.run(["/usr/sbin/sysctl", "-n", "hw.optional.arm64"], capture_output=True,
-                              text=True, timeout=5).stdout.strip() == "1"
-    except (OSError, subprocess.SubprocessError):
-        return False
 
 
 class App(tk.Tk):
@@ -420,19 +311,7 @@ class App(tk.Tk):
         self.bind_all("<F1>", lambda _e: self.show_help())
 
     def brew_cmd(self, *args: str) -> List[str]:
-        """Run brew in the architecture of its prefix. If this app is launched under Rosetta, a plain
-        `brew` in /opt/homebrew fails with "Cannot install under Rosetta 2 in ARM default prefix"."""
-        if args and args[0] in ("install", "uninstall", "reinstall"):
-            # Package names come after "--" so a name can never be parsed as a brew option.
-            opts = [a for a in args[1:] if a.startswith("-")]
-            names = [a for a in args[1:] if not a.startswith("-")]
-            args = (args[0], *opts, "--", *names)
-        if apple_silicon() and os.path.exists("/usr/bin/arch"):
-            if self.brew.startswith("/opt/homebrew"):
-                return ["/usr/bin/arch", "-arm64", self.brew, *args]
-            if self.brew.startswith("/usr/local"):
-                return ["/usr/bin/arch", "-x86_64", self.brew, *args]
-        return [self.brew, *args]
+        return brew_command(self.brew, *args)
 
     # ───────────────────── Rosetta 2 (Apple Silicon) ─────────────────────
     @staticmethod
@@ -678,7 +557,10 @@ class App(tk.Tk):
 
     def _sync_buttons(self, obj) -> None:
         can = self.brew is not None and not self.busy
-        st = lambda ok: "normal" if ok else "disabled"
+
+        def st(ok: bool) -> str:
+            return "normal" if ok else "disabled"
+
         if obj is None:
             for b in (self.btn_install, self.btn_remove, self.btn_cart, self.btn_copy, self.btn_home):
                 b.config(state="disabled")
@@ -872,5 +754,19 @@ class App(tk.Tk):
         self.refresh()
 
 
+def main(argv: Optional[List[str]] = None) -> None:
+    code = cli.run(argv)  # --help, --version, doctor, --install-app… run without opening a window
+    if code is not None:
+        sys.exit(code)
+    _reexec_with_modern_tk()
+    launcher.ensure_branded_launcher()
+    try:
+        App().mainloop()
+    except tk.TclError as exc:
+        print(f"brewcat: cannot open a window ({exc}).\n"
+              "No display available? Run `brewcat doctor` to diagnose.", file=sys.stderr)
+        sys.exit(1)
+
+
 if __name__ == "__main__":
-    App().mainloop()
+    main()

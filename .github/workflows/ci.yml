@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install tools
+        run: python -m pip install --upgrade pip pytest ruff
+      - name: Install Tk and a virtual display (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y tk xvfb shellcheck
+      - name: Lint (real bugs only)
+        run: ruff check .
+      - name: Catalog structure
+        run: python scripts/validate_catalog.py --offline
+      - name: Tests (with a virtual display)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a python -m pytest
+      - name: Tests (no GUI smoke test on the macOS runner)
+        if: runner.os == 'macOS'
+        run: python -m pytest --ignore=tests/test_gui_smoke.py
+      - name: Shell scripts (syntax)
+        run: bash -n install.sh scripts/build-dmg.sh scripts/release.sh
+      - name: Shell scripts (shellcheck, advisory for now)
+        if: runner.os == 'Linux'
+        continue-on-error: true
+        run: shellcheck install.sh scripts/*.sh
+      - name: Formula and cask parse
+        run: ruby -c Formula/brewcat.rb && ruby -c Casks/brewcat.rb

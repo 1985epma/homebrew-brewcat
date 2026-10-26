@@ -2,11 +2,11 @@
 # Build dist/brewcat-<version>.dmg containing a launcher-style brewcat.app (macOS only).
 set -euo pipefail
 cd "$(dirname "$0")/.."
-VERSION="${1:-0.1.2.6}"
+VERSION="${1:-$(sed -n 's/^VERSION = "\(.*\)"$/\1/p' help_text.py)}"
 APP="dist/brewcat.app"
 rm -rf dist && mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-cp app.py catalog_data.py extras_tab.py logo.py help_text.py "$APP/Contents/Resources/"
+cp ./*.py "$APP/Contents/Resources/"
 cp assets/brewcat.icns "$APP/Contents/Resources/brewcat.icns"
 
 cat > "$APP/Contents/Info.plist" <<PLIST

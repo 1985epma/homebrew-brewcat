@@ -8,8 +8,7 @@ class Brewcat < Formula
   depends_on "python-tk"
 
   def install
-    libexec.install "app.py", "catalog_data.py", "extras_tab.py", "logo.py", "help_text.py"
-    libexec.install "assets"
+    libexec.install Dir["*.py"], "assets"
     (bin/"brewcat").write <<~SH
       #!/bin/bash
       exec "#{HOMEBREW_PREFIX}/bin/python3" "#{libexec}/app.py" "$@"
@@ -26,5 +25,6 @@ class Brewcat < Formula
   test do
     ENV.prepend_path "PYTHONPATH", libexec
     system "#{HOMEBREW_PREFIX}/bin/python3", "-c", "import catalog_data; assert len(catalog_data.ITEMS) > 100"
+    assert_match version.to_s, shell_output("#{bin}/brewcat --version")
   end
 end

@@ -324,7 +324,7 @@ class SkillsTab(ttk.Frame):
             links = unsafe_links(folder)
             if links:
                 self.app._log("err", f"✗ {folder.name}: skipped, symlink(s) point outside the skill folder: "
-                                     f"{', '.join(str(l.relative_to(folder)) for l in links[:5])}\n")
+                                     f"{', '.join(str(link.relative_to(folder)) for link in links[:5])}\n")
                 continue
             for k in targets:
                 dest = skill_root(k, scope, proj) / folder.name

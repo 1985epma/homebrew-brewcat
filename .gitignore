@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 .DS_Store
 dist/
+.pytest_cache/
+.ruff_cache/
+.venv/

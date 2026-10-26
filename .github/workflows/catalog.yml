@@ -1,0 +1,24 @@
+name: Catalog check
+
+# Packages get renamed, deprecated or disabled in Homebrew all the time. This job fails (and GitHub
+# emails the owner) when a package in the curated catalog no longer exists or was disabled.
+on:
+  schedule:
+    - cron: "17 6 * * 1"   # Mondays 06:17 UTC
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - catalog_data.py
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python scripts/validate_catalog.py

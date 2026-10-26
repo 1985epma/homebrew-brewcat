@@ -10,6 +10,15 @@ USAGE
   brewcat              open the app
   brewcat --help       show this help
   brewcat --version    show the version and OS
+  brewcat search <words> [-p PROFILE] [--installed|--not-installed] [--json]
+                       search the curated catalog from the terminal (no window)
+  brewcat list [-p PROFILE] [-c CATEGORY] [--json]     list packages (✓ = installed)
+  brewcat kits [NAME] [-p PROFILE] [--json]            list kits, or show one kit's packages
+  brewcat install <kit|package> [--dry-run] [--yes]    install a kit or package (asks to confirm)
+  brewcat export <kit|packages…> [-o Brewfile]         write a Brewfile
+  brewcat profiles     list the profile names accepted by -p
+  brewcat doctor       check this machine (Python/Tk, Homebrew, Rosetta, tap trust…) and print fixes
+  brewcat doctor --json  same, machine-readable (exit code 1 if a check fails)
   brewcat --install-app  macOS: (re)create ~/Applications/brewcat.app for Launchpad/Spotlight
 
 PACKAGES TAB
@@ -53,6 +62,7 @@ SAFETY
   Command output appears in the log at the bottom of the window.
 
 TROUBLESHOOTING
+  Anything unexpected     Run `brewcat doctor` first; paste its output when asking for help.
   brewcat not in Launchpad/Applications (macOS)  Run `brewcat` once (it creates ~/Applications/brewcat.app)
                           or `brewcat --install-app`.
   "Refusing to load formula … from untrusted tap"   Run once: brew trust 1985epma/brewcat
