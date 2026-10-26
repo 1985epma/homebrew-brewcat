@@ -51,6 +51,9 @@ SAFETY
   Command output appears in the log at the bottom of the window.
 
 TROUBLESHOOTING
+  "Cannot install under Rosetta 2"  brewcat now runs brew natively (arch -arm64) on Apple Silicon.
+  macOS asks for Rosetta 2  On Apple Silicon brewcat offers to install it at startup
+                          (or run: softwareupdate --install-rosetta --agree-to-license).
   Blank window on macOS   The system Python's Tk 8.5 is broken: brew install python-tk
   "brew NOT found"        Install Homebrew from https://brew.sh
   Cask asks for a password  Run the shown `brew install --cask …` command in a terminal.

@@ -40,8 +40,29 @@ osascript -e 'display dialog "brewcat needs Homebrew and python-tk.\n\nInstall t
 LAUNCH
 chmod +x "$APP/Contents/MacOS/brewcat"
 
+# Ad-hoc sign (no Apple Developer ID): satisfies Apple Silicon's signature requirement. Gatekeeper will
+# still warn for downloaded copies because the app is not notarized, so the DMG ships instructions.
+codesign --force --deep --sign - "$APP" >/dev/null 2>&1 || echo "warning: ad-hoc codesign failed"
+
 STAGE="dist/dmg"
 mkdir -p "$STAGE" && cp -R "$APP" "$STAGE/" && ln -s /Applications "$STAGE/Applications"
+cat > "$STAGE/READ ME FIRST.txt" <<'TXT'
+brewcat is not notarized by Apple, so macOS may say it "could not verify brewcat is free of malware".
+It is open source: https://github.com/1985epma/homebrew-brewcat
+
+To open it:
+  1. Drag brewcat to Applications.
+  2. Open Terminal and run:
+         xattr -dr com.apple.quarantine /Applications/brewcat.app
+  3. Open brewcat normally.
+  (Or: System Settings > Privacy & Security > scroll down > "Open Anyway".)
+
+No warning at all if you install with Homebrew instead:
+         brew tap 1985epma/brewcat && brew install brewcat && brewcat
+
+brewcat needs python-tk:  brew install python-tk
+On Apple Silicon, brewcat also offers to install Rosetta 2 for Intel-only apps.
+TXT
 hdiutil create -volname "brewcat" -srcfolder "$STAGE" -ov -format UDZO "dist/brewcat-${VERSION}.dmg" >/dev/null
 rm -rf "$STAGE"
 echo "Built dist/brewcat-${VERSION}.dmg"

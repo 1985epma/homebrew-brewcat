@@ -112,6 +112,19 @@ def find_brew() -> Optional[str]:
     return shutil.which("brew") or next((p for p in BREW_CANDIDATES if os.path.exists(p)), None)
 
 
+def apple_silicon() -> bool:
+    """True on Apple Silicon hardware, even when this process runs translated under Rosetta."""
+    if sys.platform != "darwin":
+        return False
+    if platform.machine() == "arm64":
+        return True
+    try:
+        return subprocess.run(["/usr/sbin/sysctl", "-n", "hw.optional.arm64"], capture_output=True,
+                              text=True, timeout=5).stdout.strip() == "1"
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
 class App(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
@@ -139,6 +152,7 @@ class App(tk.Tk):
         self.search.trace_add("write", self._on_search_change)
         self.after(100, self._poll_log)
         self.refresh_installed()
+        self.after(1500, self._check_rosetta)
 
     # ───────────────────────── UI ─────────────────────────
     def _build_ui(self) -> None:
@@ -295,6 +309,59 @@ class App(tk.Tk):
         txt.config(state="disabled")
         self.bind_all("<F1>", lambda _e: self.show_help())
 
+    def brew_cmd(self, *args: str) -> List[str]:
+        """Run brew in the architecture of its prefix. If this app is launched under Rosetta, a plain
+        `brew` in /opt/homebrew fails with "Cannot install under Rosetta 2 in ARM default prefix"."""
+        if apple_silicon() and os.path.exists("/usr/bin/arch"):
+            if self.brew.startswith("/opt/homebrew"):
+                return ["/usr/bin/arch", "-arm64", self.brew, *args]
+            if self.brew.startswith("/usr/local"):
+                return ["/usr/bin/arch", "-x86_64", self.brew, *args]
+        return [self.brew, *args]
+
+    # ───────────────────── Rosetta 2 (Apple Silicon) ─────────────────────
+    @staticmethod
+    def rosetta_missing() -> bool:
+        return (apple_silicon()
+                and not os.path.exists("/Library/Apple/usr/share/rosetta/rosetta"))
+
+    def _check_rosetta(self) -> None:
+        """Many casks are Intel-only; without Rosetta 2 macOS shows an install prompt/error."""
+        flag = os.path.expanduser("~/Library/Application Support/brewcat/rosetta_declined")
+        if not self.rosetta_missing() or os.path.exists(flag):
+            return
+        if messagebox.askyesno("Install Rosetta 2?",
+                               "Rosetta 2 is not installed on this Apple Silicon Mac.\n\n"
+                               "Many apps (especially casks) are Intel-only and need it, otherwise macOS "
+                               "shows an error asking to install it.\n\n"
+                               "Install Rosetta 2 now? macOS will ask for your administrator password."):
+            self.install_rosetta()
+        else:
+            os.makedirs(os.path.dirname(flag), exist_ok=True)
+            open(flag, "w").close()
+            self._log("info", "Rosetta 2 skipped. Install later with: "
+                              "softwareupdate --install-rosetta --agree-to-license\n")
+
+    def install_rosetta(self) -> None:
+        self._log("cmd", "\n$ softwareupdate --install-rosetta --agree-to-license  (administrator)\n")
+        self.busy = True
+        self.progress.start(12)
+
+        def worker() -> None:
+            script = 'do shell script "/usr/sbin/softwareupdate --install-rosetta --agree-to-license" ' \
+                     'with administrator privileges'
+            try:
+                r = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=900)
+                self.log_q.put(("out", (r.stdout + r.stderr).strip() + "\n"))
+                ok = r.returncode == 0
+            except (OSError, subprocess.SubprocessError) as exc:
+                self.log_q.put(("err", f"Error: {exc}\n"))
+                ok = False
+            self.log_q.put(("info", "✓ Rosetta 2 installed.\n" if ok else "✗ Rosetta 2 was not installed.\n"))
+            self.log_q.put(("done", ""))
+
+        threading.Thread(target=worker, daemon=True).start()
+
     # ───────────────────── search by name in all of Homebrew ─────────────────────
     def _on_search_change(self, *_args) -> None:
         self.refresh()
@@ -313,7 +380,7 @@ class App(tk.Tk):
             found: List[Tuple[str, str]] = []
             for kind, flag in (("formula", "--formulae"), ("cask", "--casks")):
                 try:
-                    out = subprocess.run([self.brew, "search", flag, words[0]], capture_output=True,
+                    out = subprocess.run(self.brew_cmd("search", flag, words[0]), capture_output=True,
                                          text=True, timeout=30).stdout
                 except (OSError, subprocess.SubprocessError):
                     continue
@@ -345,7 +412,7 @@ class App(tk.Tk):
 
         def worker() -> None:
             try:
-                out = subprocess.run([self.brew, "desc", f"--{item.kind}", item.full_name],
+                out = subprocess.run(self.brew_cmd("desc", f"--{item.kind}", item.full_name),
                                      capture_output=True, text=True, timeout=30).stdout.strip()
             except (OSError, subprocess.SubprocessError):
                 out = ""
@@ -645,7 +712,7 @@ class App(tk.Tk):
             for args in cmds:
                 self.log_q.put(("cmd", f"\n$ brew {' '.join(args)}\n"))
                 try:
-                    p = subprocess.Popen([self.brew, *args], stdout=subprocess.PIPE,
+                    p = subprocess.Popen(self.brew_cmd(*args), stdout=subprocess.PIPE,
                                          stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
                                          text=True, env=env)
                     for line in p.stdout:  # type: ignore[union-attr]
@@ -667,7 +734,7 @@ class App(tk.Tk):
             res = {}
             for kind in ("formula", "cask"):
                 try:
-                    out = subprocess.run([self.brew, "list", f"--{kind}", "-1"], capture_output=True,
+                    out = subprocess.run(self.brew_cmd("list", f"--{kind}", "-1"), capture_output=True,
                                          text=True, timeout=60).stdout
                     res[kind] = set(out.split())
                 except (OSError, subprocess.SubprocessError):

@@ -22,7 +22,11 @@ A visual catalog (Python + Tkinter) of Homebrew packages for developers and game
 
 ## Other install options
 
-**macOS (.dmg):** download `brewcat-<version>.dmg` from [Releases](https://github.com/1985epma/homebrew-brewcat/releases), drag *brewcat* to Applications. The app is unsigned: right-click → Open the first time. It needs `brew install python-tk`.
+**macOS (.dmg):** download `brewcat-<version>.dmg` from [Releases](https://github.com/1985epma/homebrew-brewcat/releases), drag *brewcat* to Applications. The app is not notarized by Apple, so macOS may say it "could not verify brewcat is free of malware". Fix it once with:
+
+    xattr -dr com.apple.quarantine /Applications/brewcat.app
+
+(or System Settings → Privacy & Security → *Open Anyway*). Installing with `brew` avoids this warning entirely. It needs `brew install python-tk`.
 
 **Linux (script):**
 
