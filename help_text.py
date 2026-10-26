@@ -1,6 +1,6 @@
 """Help text for brewcat, shared by `brewcat --help` and the in-app Help window."""
 
-VERSION = "0.1.2.5"
+VERSION = "0.1.2.6"
 
 HELP = f"""\
 brewcat {VERSION} — a visual catalog of Homebrew packages, skills and MCP servers

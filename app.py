@@ -61,7 +61,10 @@ def _build_app_bundle(install_only: bool = False) -> Optional[str]:
     stub = os.path.join(sys.base_prefix, "Resources/Python.app/Contents/MacOS/Python")
     if not os.path.exists(stub) or not os.path.exists(script):
         return None
-    base = os.path.expanduser("~/Applications/brewcat.app")
+    # Normally a visible app in ~/Applications. When brewcat already runs from a /Applications copy (cask or
+    # .dmg), keep the helper bundle hidden so Launchpad doesn't show two brewcat apps.
+    base = os.path.expanduser("~/Library/Application Support/brewcat/brewcat.app"
+                              if os.environ.get("BREWCAT_HIDDEN_APP") else "~/Applications/brewcat.app")
     macos = os.path.join(base, "Contents/MacOS")
     py_exe, launcher = os.path.join(macos, "brewcat-python"), os.path.join(macos, "brewcat")
     marker = os.path.join(base, "Contents/.brewcat-build")
@@ -95,9 +98,6 @@ def _build_app_bundle(install_only: bool = False) -> Optional[str]:
 """)
         with open(marker, "w") as fh:
             fh.write(want)
-        # Old location used by earlier versions.
-        shutil.rmtree(os.path.expanduser("~/Library/Application Support/brewcat/brewcat.app"),
-                      ignore_errors=True)
     return py_exe
 
 

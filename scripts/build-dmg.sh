@@ -2,7 +2,7 @@
 # Build dist/brewcat-<version>.dmg containing a launcher-style brewcat.app (macOS only).
 set -euo pipefail
 cd "$(dirname "$0")/.."
-VERSION="${1:-0.1.2.5}"
+VERSION="${1:-0.1.2.6}"
 APP="dist/brewcat.app"
 rm -rf dist && mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
@@ -33,7 +33,7 @@ DIR="$(cd "$(dirname "$0")/../Resources" && pwd)"
 for PY in /opt/homebrew/bin/python3 /usr/local/bin/python3; do
   if [ -x "$PY" ] && "$PY" -c "import tkinter" 2>/dev/null; then
     export TK_SILENCE_DEPRECATION=1
-    export BREWCAT_NO_APP=1  # this app already lives in /Applications; don't create ~/Applications/brewcat.app
+    export BREWCAT_HIDDEN_APP=1  # already in /Applications: keep the "brewcat" helper bundle hidden
     exec "$PY" "$DIR/app.py"
   fi
 done
