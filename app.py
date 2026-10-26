@@ -15,7 +15,7 @@ from tkinter import filedialog, messagebox, ttk
 from typing import Dict, List, Optional, Set, Tuple
 
 import catalog_data as cd
-from help_text import HELP, VERSION
+from help_text import HELP, VERSION, os_description
 from extras_tab import McpTab, SkillsTab
 from logo import draw_canvas as draw_logo
 
@@ -25,7 +25,7 @@ if any(a in ("-h", "--help", "help") for a in sys.argv[1:]):
     print(HELP)
     sys.exit(0)
 if any(a in ("-V", "--version") for a in sys.argv[1:]):
-    print(f"brewcat {VERSION}")
+    print(f"brewcat {VERSION}\n{os_description()}")
     sys.exit(0)
 
 
@@ -151,6 +151,7 @@ class App(tk.Tk):
         self._build_ui()
         self.search.trace_add("write", self._on_search_change)
         self.after(100, self._poll_log)
+        self.createcommand("tk::mac::ShowAbout", self.show_about)  # macOS app menu > About brewcat
         self.refresh_installed()
         self.after(1500, self._check_rosetta)
 
@@ -170,6 +171,7 @@ class App(tk.Tk):
         ttk.Label(top, text=f"  {'macOS' if SYSTEM == cd.MAC else 'Linux'}"
                             f" • {'brew found' if self.brew else 'brew NOT found'}",
                   style="Sub.TLabel").pack(side="left")
+        ttk.Button(top, text="About", command=self.show_about).pack(side="right", padx=(6, 0))
         ttk.Button(top, text="Help", command=self.show_help).pack(side="right", padx=(6, 0))
         ttk.Button(top, text="Refresh status", command=self.refresh_installed).pack(side="right")
         ttk.Button(top, text="brew update", command=lambda: self.run_brew([["update"]])).pack(side="right", padx=6)
@@ -295,6 +297,42 @@ class App(tk.Tk):
     # ───────────────────────── dados ─────────────────────────
     def is_installed(self, item: cd.Item) -> bool:
         return item.name in self.installed[item.kind]
+
+    def show_about(self) -> None:
+        win = tk.Toplevel(self)
+        win.title("About brewcat")
+        win.resizable(False, False)
+        body = ttk.Frame(win, padding=20)
+        body.pack()
+        logo = tk.Canvas(body, width=96, height=96, highlightthickness=0, bd=0)
+        draw_logo(logo, 96)
+        logo.grid(row=0, column=0, rowspan=2, padx=(0, 16))
+        ttk.Label(body, text="brewcat", style="Title.TLabel").grid(row=0, column=1, sticky="sw")
+        ttk.Label(body, text=f"Version {VERSION}").grid(row=1, column=1, sticky="nw")
+        info = ttk.Frame(body)
+        info.grid(row=2, column=0, columnspan=2, sticky="w", pady=(14, 0))
+        rows = [("OS", os_description()),
+                ("Python", f"{platform.python_version()} (Tk {tk.TkVersion:g})"),
+                ("Homebrew", "checking…"),
+                ("License", "MIT"),
+                ("Source", "github.com/1985epma/homebrew-brewcat")]
+        values = {}
+        for i, (k, v) in enumerate(rows):
+            ttk.Label(info, text=k + ":", style="Sub.TLabel").grid(row=i, column=0, sticky="nw", padx=(0, 10))
+            values[k] = ttk.Label(info, text=v, wraplength=360, justify="left")
+            values[k].grid(row=i, column=1, sticky="w")
+        ttk.Button(body, text="OK", command=win.destroy).grid(row=3, column=0, columnspan=2, pady=(16, 0))
+
+        def worker() -> None:
+            try:
+                out = subprocess.run(self.brew_cmd("--version"), capture_output=True, text=True,
+                                     timeout=15).stdout.split("\n")[0] if self.brew else "not found"
+            except (OSError, subprocess.SubprocessError):
+                out = "unavailable"
+            self.log_q.put(("call", lambda: values["Homebrew"].winfo_exists() and
+                            values["Homebrew"].config(text=out or "unavailable")))
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def show_help(self) -> None:
         win = tk.Toplevel(self)

@@ -62,3 +62,27 @@ TROUBLESHOOTING
 LINKS
   https://github.com/1985epma/homebrew-brewcat   (MIT License)
 """
+
+
+def os_description() -> str:
+    """Human-readable OS name, version and CPU architecture (flags Rosetta translation)."""
+    import platform
+    import subprocess
+    import sys
+
+    machine = platform.machine()
+    if sys.platform == "darwin":
+        name = f"macOS {platform.mac_ver()[0]}"
+        try:
+            out = subprocess.run(["/usr/sbin/sysctl", "-n", "hw.optional.arm64", "sysctl.proc_translated"],
+                                 capture_output=True, text=True, timeout=5).stdout.split()
+        except (OSError, subprocess.SubprocessError):
+            out = []
+        if machine == "x86_64" and out[:1] == ["1"]:
+            return f"{name} ({machine}, Apple Silicon running under Rosetta)"
+        return f"{name} ({'Apple Silicon, arm64' if machine == 'arm64' else machine})"
+    try:
+        name = platform.freedesktop_os_release().get("PRETTY_NAME", "Linux")
+    except (OSError, AttributeError):
+        name = f"{platform.system()} {platform.release()}"
+    return f"{name} ({machine})"
