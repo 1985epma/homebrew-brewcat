@@ -17,8 +17,13 @@ A visual catalog (Python + Tkinter) of Homebrew packages for developers and game
 ## Install with Homebrew
 
     brew tap 1985epma/brewcat
+    brew trust 1985epma/brewcat
     brew install brewcat
     brewcat
+
+Recent Homebrew versions refuse to load formulae from third-party taps until you trust them. If you see
+`Refusing to load formula … from untrusted tap`, run `brew trust 1985epma/brewcat` once (then
+`brew update && brew upgrade brewcat`).
 
 ## Other install options
 

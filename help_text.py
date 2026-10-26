@@ -51,6 +51,7 @@ SAFETY
   Command output appears in the log at the bottom of the window.
 
 TROUBLESHOOTING
+  "Refusing to load formula … from untrusted tap"   Run once: brew trust 1985epma/brewcat
   "Cannot install under Rosetta 2"  brewcat now runs brew natively (arch -arm64) on Apple Silicon.
   macOS asks for Rosetta 2  On Apple Silicon brewcat offers to install it at startup
                           (or run: softwareupdate --install-rosetta --agree-to-license).
