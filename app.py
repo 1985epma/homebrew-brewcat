@@ -50,31 +50,38 @@ def _reexec_with_modern_tk() -> None:
 _reexec_with_modern_tk()
 
 
-def _ensure_branded_launcher() -> None:
-    """macOS shows the process name in the menu bar and Dock ("Python"). Re-launch through a tiny
-    brewcat.app (a copy of Python's launcher stub) so it shows "brewcat" and the cat icon."""
-    if sys.platform != "darwin" or os.environ.get("BREWCAT_BRANDED"):
-        return
-    try:
-        here = os.path.dirname(os.path.abspath(__file__))
-        stub = os.path.join(sys.base_prefix, "Resources/Python.app/Contents/MacOS/Python")
-        if not os.path.exists(stub):
-            return
-        base = os.path.expanduser("~/Library/Application Support/brewcat/brewcat.app")
-        exe = os.path.join(base, "Contents/MacOS/brewcat")
-        marker = os.path.join(base, "Contents/.stub")
-        want = os.path.realpath(stub)
-        if not (os.path.exists(exe) and os.path.exists(marker) and open(marker).read() == want):
-            shutil.rmtree(base, ignore_errors=True)
-            os.makedirs(os.path.dirname(exe))
-            os.makedirs(os.path.join(base, "Contents/Resources"))
-            shutil.copy2(stub, exe)
-            for icns in (os.path.join(here, "assets/brewcat.icns"), os.path.join(here, "brewcat.icns")):
-                if os.path.exists(icns):
-                    shutil.copy2(icns, os.path.join(base, "Contents/Resources/brewcat.icns"))
-                    break
-            with open(os.path.join(base, "Contents/Info.plist"), "w") as fh:
-                fh.write("""<?xml version="1.0" encoding="UTF-8"?>
+def _build_app_bundle(install_only: bool = False) -> Optional[str]:
+    """Create ~/Applications/brewcat.app (macOS) so brewcat shows up in Launchpad, Spotlight and Finder.
+    The bundle holds a copy of Python's launcher stub, so macOS shows "brewcat" and the cat icon in the
+    menu bar and Dock instead of "Python". Returns the path of the stub inside the bundle."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    # Use brew's stable "opt" path so the app keeps working after `brew upgrade`.
+    stable = re.sub(r"/Cellar/brewcat/[^/]+/libexec$", "/opt/brewcat/libexec", here)
+    script = os.path.join(stable, "app.py")
+    stub = os.path.join(sys.base_prefix, "Resources/Python.app/Contents/MacOS/Python")
+    if not os.path.exists(stub) or not os.path.exists(script):
+        return None
+    base = os.path.expanduser("~/Applications/brewcat.app")
+    macos = os.path.join(base, "Contents/MacOS")
+    py_exe, launcher = os.path.join(macos, "brewcat-python"), os.path.join(macos, "brewcat")
+    marker = os.path.join(base, "Contents/.brewcat-build")
+    want = f"{VERSION}|{os.path.realpath(stub)}|{script}"
+    if not (os.path.exists(py_exe) and os.path.exists(launcher) and os.path.exists(marker)
+            and open(marker).read() == want):
+        shutil.rmtree(base, ignore_errors=True)
+        os.makedirs(macos)
+        os.makedirs(os.path.join(base, "Contents/Resources"))
+        shutil.copy2(stub, py_exe)
+        for icns in (os.path.join(here, "assets/brewcat.icns"), os.path.join(here, "brewcat.icns")):
+            if os.path.exists(icns):
+                shutil.copy2(icns, os.path.join(base, "Contents/Resources/brewcat.icns"))
+                break
+        with open(launcher, "w") as fh:  # what Finder/Launchpad run on double-click
+            fh.write(f'#!/bin/bash\nexport BREWCAT_BRANDED=1 TK_SILENCE_DEPRECATION=1\n'
+                     f'exec "$(dirname "$0")/brewcat-python" "{script}" "$@"\n')
+        os.chmod(launcher, 0o755)
+        with open(os.path.join(base, "Contents/Info.plist"), "w") as fh:
+            fh.write("""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>CFBundleName</key><string>brewcat</string>
@@ -86,13 +93,40 @@ def _ensure_branded_launcher() -> None:
 <key>NSHighResolutionCapable</key><true/>
 </dict></plist>
 """)
-            with open(marker, "w") as fh:
-                fh.write(want)
-        os.environ["BREWCAT_BRANDED"] = "1"
-        os.execv(exe, [exe, os.path.join(here, "app.py"), *sys.argv[1:]])
+        with open(marker, "w") as fh:
+            fh.write(want)
+        # Old location used by earlier versions.
+        shutil.rmtree(os.path.expanduser("~/Library/Application Support/brewcat/brewcat.app"),
+                      ignore_errors=True)
+    return py_exe
+
+
+def _ensure_branded_launcher() -> None:
+    """Re-launch through ~/Applications/brewcat.app so the process is named "brewcat" (not "Python")."""
+    if sys.platform != "darwin" or os.environ.get("BREWCAT_BRANDED") or os.environ.get("BREWCAT_NO_APP"):
+        return
+    try:
+        exe = _build_app_bundle()
+        if exe:
+            os.environ["BREWCAT_BRANDED"] = "1"
+            os.execv(exe, [exe, os.path.join(os.path.dirname(os.path.abspath(__file__)), "app.py"),
+                           *sys.argv[1:]])
     except Exception:  # noqa: BLE001 - branding is cosmetic; never block startup
         os.environ["BREWCAT_BRANDED"] = "1"
 
+
+if "--install-app" in sys.argv[1:]:
+    if sys.platform != "darwin":
+        print("--install-app is only needed on macOS (the Linux installer adds a desktop entry).")
+        sys.exit(0)
+    try:
+        ok = _build_app_bundle()
+    except Exception as exc:  # noqa: BLE001
+        ok = None
+        print(f"Could not create the app: {exc}", file=sys.stderr)
+    print("Created ~/Applications/brewcat.app: open it from Launchpad or Spotlight." if ok else
+          "Could not create ~/Applications/brewcat.app.")
+    sys.exit(0 if ok else 1)
 
 _ensure_branded_launcher()
 

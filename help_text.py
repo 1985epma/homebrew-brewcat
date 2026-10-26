@@ -1,6 +1,6 @@
 """Help text for brewcat, shared by `brewcat --help` and the in-app Help window."""
 
-VERSION = "0.1.2.4"
+VERSION = "0.1.2.5"
 
 HELP = f"""\
 brewcat {VERSION} — a visual catalog of Homebrew packages, skills and MCP servers
@@ -9,7 +9,8 @@ for developers, SRE/cloud engineers and gamers (macOS and Linux).
 USAGE
   brewcat              open the app
   brewcat --help       show this help
-  brewcat --version    show the version
+  brewcat --version    show the version and OS
+  brewcat --install-app  macOS: (re)create ~/Applications/brewcat.app for Launchpad/Spotlight
 
 PACKAGES TAB
   Profile     All, Dev, SRE/Cloud, QA, Data Scientist, Data Engineer, Support & Network,
@@ -52,6 +53,8 @@ SAFETY
   Command output appears in the log at the bottom of the window.
 
 TROUBLESHOOTING
+  brewcat not in Launchpad/Applications (macOS)  Run `brewcat` once (it creates ~/Applications/brewcat.app)
+                          or `brewcat --install-app`.
   "Refusing to load formula … from untrusted tap"   Run once: brew trust 1985epma/brewcat
   "Cannot install under Rosetta 2"  brewcat now runs brew natively (arch -arm64) on Apple Silicon.
   macOS asks for Rosetta 2  On Apple Silicon brewcat offers to install it at startup

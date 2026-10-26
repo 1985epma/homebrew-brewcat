@@ -25,6 +25,13 @@ Recent Homebrew versions refuse to load formulae from third-party taps until you
 `Refusing to load formula … from untrusted tap`, run `brew trust 1985epma/brewcat` once (then
 `brew update && brew upgrade brewcat`).
 
+## Appear in Launchpad / Applications (macOS)
+
+- `brew install --cask 1985epma/brewcat/brewcat` installs **brewcat.app** into /Applications (Launchpad, Spotlight, Dock).
+- With the formula (`brew install brewcat`), the first time you run `brewcat` it creates
+  `~/Applications/brewcat.app` automatically, so it shows up in Launchpad and Spotlight. Re-create it with
+  `brewcat --install-app`; opt out with `BREWCAT_NO_APP=1`.
+
 ## Other install options
 
 **macOS (.dmg):** download `brewcat-<version>.dmg` from [Releases](https://github.com/1985epma/homebrew-brewcat/releases), drag *brewcat* to Applications. The app is not notarized by Apple, so macOS may say it "could not verify brewcat is free of malware". Fix it once with:
@@ -37,10 +44,10 @@ Recent Homebrew versions refuse to load formulae from third-party taps until you
 
     curl -fsSL https://raw.githubusercontent.com/1985epma/homebrew-brewcat/main/install.sh | bash
 
-Installs to `~/.local/share/brewcat`, adds a `brewcat` command and a desktop entry. It installs the latest released tag (not the moving `main` branch); pin a version with `BREWCAT_REF=v0.1.2.4`.
+Installs to `~/.local/share/brewcat`, adds a `brewcat` command and a desktop entry. It installs the latest released tag (not the moving `main` branch); pin a version with `BREWCAT_REF=v0.1.2.5`.
 Review the script before piping it to `bash`: https://github.com/1985epma/homebrew-brewcat/blob/main/install.sh
 
-**Build the .dmg yourself (macOS):** `./scripts/build-dmg.sh 0.1.2.4`
+**Build the .dmg yourself (macOS):** `./scripts/build-dmg.sh 0.1.2.5`
 
 ## Run from source
 
