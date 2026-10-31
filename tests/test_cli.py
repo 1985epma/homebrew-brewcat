@@ -53,7 +53,7 @@ def test_install_dry_run_prints_plan_and_runs_nothing(capsys, monkeypatch):
     monkeypatch.setattr(cli, "_installed", lambda: {"formula": set(), "cask": set()})
     monkeypatch.setattr(cli.brewenv, "find_brew", lambda: "/x/brew")
     code, out, _ = run(["install", "git pro", "--dry-run", "--platform", "mac"], capsys)
-    assert code == 0 and "brew install lazygit" in out
+    assert code == 0 and "brew install git gh lazygit git-delta git-lfs pre-commit" in out
 
 
 def test_install_without_yes_and_without_terminal_refuses(capsys, monkeypatch):
@@ -74,7 +74,7 @@ def test_export_to_stdout_and_file(capsys, tmp_path):
     code, out, _ = run(["export", "git pro", "--platform", "mac"], capsys)
     assert code == 0 and 'brew "git"' in out
     target = tmp_path / "Brewfile"
-    code, _, _ = run(["export", "jq", "cask:obs", "-o", str(target)], capsys)
+    code, _, _ = run(["export", "jq", "cask:obs", "--platform", "mac", "-o", str(target)], capsys)
     assert code == 0 and target.read_text() == 'brew "jq"\ncask "obs"\n'
 
 
@@ -97,3 +97,15 @@ def test_doctor_reports_missing_tk_as_failure(capsys, monkeypatch):
     monkeypatch.setattr(builtins, "__import__", fake)
     code, out, _ = run(["doctor", "--json"], capsys)
     assert code == 1 and any(c["name"] == "tk" and c["status"] == "FAIL" for c in json.loads(out)["checks"])
+
+
+def test_cask_is_not_offered_on_linux(capsys):
+    code, _, err = run(["export", "cask:obs", "--platform", "linux"], capsys)
+    assert code == 1 and "linux" in err
+
+
+def test_default_platform_follows_the_host(monkeypatch):
+    monkeypatch.setattr(cli.sys, "platform", "linux")
+    assert cli._default_platform() == "linux"
+    monkeypatch.setattr(cli.sys, "platform", "darwin")
+    assert cli._default_platform() == "mac"

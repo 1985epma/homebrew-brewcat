@@ -4,6 +4,7 @@ A visual catalog (Python + Tkinter) of Homebrew packages for developers and game
 
 - Categories, search, and filters by profile (Dev/Gamer) and platform
 - ✨ Suggestions based on what you already have installed
+- 🧪 **117-labs** profile: products built by 1985epma (`k8scli`, `epma-windows-usb-creator`), installable in one click
 - 🏗️ SRE/Cloud profile: Terraform, AWS, Google Cloud, Azure, Railway, Kubernetes, observability
 - 🧰 Dev areas: Node.js, Go, .NET, Java, Shell/Unix, Mainframe
 - 🔎 Search any Homebrew package by name (not just the curated catalog)

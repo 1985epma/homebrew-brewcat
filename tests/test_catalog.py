@@ -62,3 +62,22 @@ def test_install_cmd_uses_full_name_for_taps_and_cask_flag():
 def test_brewfile_lines():
     items = [cd.BY_KEY["formula:jq"], cd.BY_KEY["cask:obs"], cd.BY_KEY["formula:terraform"]]
     assert cd.brewfile_lines(items) == ['brew "jq"', 'cask "obs"', 'brew "hashicorp/tap/terraform"']
+
+
+def test_install_commands_batch_formulae_and_casks():
+    items = [cd.BY_KEY[k] for k in ("formula:jq", "formula:git", "cask:obs", "cask:vlc", "formula:terraform")]
+    assert cd.install_commands(items) == [
+        ["install", "jq", "git", "hashicorp/tap/terraform"],
+        ["install", "--cask", "obs", "vlc"],
+    ]
+    assert cd.install_commands([]) == []
+    assert cd.install_commands([cd.BY_KEY["cask:obs"]]) == [["install", "--cask", "obs"]]
+
+
+def test_117_labs_products():
+    labs = cd.find_items(profile=cd.LABS)
+    assert sorted(i.name for i in labs) == ["epma-windows-usb-creator", "k8scli"]
+    for i in labs:
+        assert i.tap and i.homepage.startswith("https://github.com/1985epma/")
+        assert i.install_cmd[-1] == f"{i.tap}/{i.name}"
+    assert cd.find_kit("117-labs").keys == ("formula:k8scli", "formula:epma-windows-usb-creator")

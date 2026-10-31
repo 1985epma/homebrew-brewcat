@@ -32,7 +32,7 @@ jobs:
         run: python scripts/validate_catalog.py --offline
       - name: Tests (with a virtual display)
         if: runner.os == 'Linux'
-        run: xvfb-run -a python -m pytest
+        run: xvfb-run -a python -m pytest -rs
       - name: Tests (no GUI smoke test on the macOS runner)
         if: runner.os == 'macOS'
         run: python -m pytest --ignore=tests/test_gui_smoke.py

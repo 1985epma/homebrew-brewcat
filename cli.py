@@ -315,7 +315,7 @@ def cmd_install(ns: argparse.Namespace) -> int:
     if not todo:
         print(f"Everything in '{label}' is already installed.")
         return 0
-    cmds = [i.install_cmd for i in todo]
+    cmds = cd.install_commands(todo)
     printable = ["brew " + " ".join(c) for c in cmds]
     print(f"Plan for '{label}' ({len(todo)} package(s)):")
     print("\n".join("  " + p for p in printable))
@@ -334,7 +334,13 @@ def cmd_install(ns: argparse.Namespace) -> int:
     failed = 0
     for c in cmds:
         print(f"\n$ brew {' '.join(c)}", flush=True)
-        failed += subprocess.run(brewenv.brew_command(brew, *c)).returncode != 0
+        code = subprocess.run(brewenv.brew_command(brew, *c)).returncode
+        names = [a for a in c[1:] if not a.startswith("-")]
+        if code != 0 and len(names) > 1:  # one bad package must not block the others
+            print("↻ batch failed, retrying package by package…", flush=True)
+            flags = [a for a in c[1:] if a.startswith("-")]
+            code = max(subprocess.run(brewenv.brew_command(brew, "install", *flags, n)).returncode for n in names)
+        failed += code != 0
     return 1 if failed else 0
 
 
@@ -347,8 +353,10 @@ def cmd_export(ns: argparse.Namespace) -> int:
         for name in ns.target:
             hits = [i for i in cd.resolve_packages(name) if ns.platform in i.platforms]
             if len(hits) != 1:
-                print(f"brewcat: '{name}' is {'ambiguous (use formula:NAME or cask:NAME)' if hits else 'not in the catalog'}",
-                      file=sys.stderr)
+                anywhere = cd.resolve_packages(name)
+                why = ("ambiguous (use formula:NAME or cask:NAME)" if len(hits) > 1 else
+                       f"not available on {ns.platform}" if anywhere else "not in the catalog")
+                print(f"brewcat: '{name}' is {why}", file=sys.stderr)
                 return 1
             items.append(hits[0])
     text = "\n".join(cd.brewfile_lines(items)) + "\n"

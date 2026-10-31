@@ -19,6 +19,7 @@ DE = "dataeng"
 NET = "network"
 SEC = "security"
 VENDOR = "vendors"
+LABS = "117labs"
 MAC = "mac"
 LINUX = "linux"
 BOTH = (MAC, LINUX)
@@ -35,6 +36,7 @@ class Item:
     tags: Tuple[str, ...] = ()
     tap: str = ""  # e.g. "hashicorp/tap" for formulae outside homebrew-core
     groups: Tuple[str, ...] = ()  # extra categories this package also appears in
+    homepage: str = ""  # product page, used instead of formulae.brew.sh for tap-only products
 
     @property
     def full_name(self) -> str:
@@ -1253,6 +1255,21 @@ KITS.extend([
          "cask:goland", "cask:datagrip", "cask:font-jetbrains-mono")),
 ])
 
+# ───────────────────── 117-labs: products by 1985epma ─────────────────────
+C_LABS = "117-labs"
+ITEMS.append(Item(
+    "k8scli", "formula", C_LABS,
+    "K8s Easy CLI: Kubernetes helper for managing clusters, pods, deployments and more",
+    (LABS,), BOTH, ("k8s", "kubernetes", "containers", "cli", "117labs"),
+    tap="1985epma/k8scli", homepage="https://github.com/1985epma/k8scli"))
+ITEMS.append(Item(
+    "epma-windows-usb-creator", "formula", C_LABS,
+    "Create verified bootable USB drives from Windows 11, Linux and ChromeOS Flex (GUI)",
+    (LABS,), BOTH, ("usb", "windows", "linux", "installer", "117labs"),
+    tap="1985epma/tap", homepage="https://github.com/1985epma/epma-windows-usb-creator"))
+KITS.append(Kit("117-labs Toolkit", "Everything built by 117-labs (1985epma)", LABS,
+                ("formula:k8scli", "formula:epma-windows-usb-creator")))
+
 # Merge duplicate keys (same package listed in several areas): keep the first, union profiles/tags.
 _merged: dict = {}
 for _it in ITEMS:
@@ -1262,7 +1279,8 @@ for _it in ITEMS:
                                 tuple(dict.fromkeys(_o.profiles + _it.profiles)), _o.platforms,
                                 tuple(dict.fromkeys(_o.tags + _it.tags)), _o.tap or _it.tap,
                                 tuple(dict.fromkeys(_o.groups + _it.groups
-                                                    + ((_it.category,) if _it.category != _o.category else ()))))
+                                                    + ((_it.category,) if _it.category != _o.category else ()))),
+                                _o.homepage or _it.homepage)
     else:
         _merged[_it.key] = _it
 ITEMS[:] = list(_merged.values())
@@ -1285,6 +1303,7 @@ PROFILE_CATEGORIES = {
     NET: [C_NETD, C_REMOTE],
     SEC: [C_PEN, C_APPSEC, C_REV, C_PRIV],
     VENDOR: [C_MS, C_ORA, C_APPLE, C_OSS, C_RH, C_JB],
+    LABS: [C_LABS],
     DESIGN: [C_DWEB, C_DGFX, C_DVID],
     DJ: [C_DJ],
     OFFICE: [C_OFFICE, "Communication & Cloud Drive", "Documents & PDF Tools"],
@@ -1310,6 +1329,7 @@ ESSENTIALS = {
     OFFICE: ["cask:libreoffice", "cask:obsidian", "cask:slack", "cask:zoom", "cask:rectangle"],
     VENDOR: ["cask:visual-studio-code", "cask:jetbrains-toolbox", "formula:podman", "formula:swiftlint",
              "cask:oracle-jdk", "cask:libreoffice", "cask:firefox", "formula:dotnet"],
+    LABS: ["formula:k8scli", "formula:epma-windows-usb-creator"],
     GAMER: ["cask:steam", "cask:discord", "cask:obs", "cask:heroic", "cask:retroarch",
             "formula:btop", "cask:stats", "cask:vlc"],
 }
@@ -1319,6 +1339,7 @@ ESSENTIALS = {
 PROFILE_SLUGS = {
     "dev": DEV, "sre": SRE, "qa": QA, "datascience": DS, "dataeng": DE, "network": NET,
     "security": SEC, "design": DESIGN, "dj": DJ, "office": OFFICE, "vendors": VENDOR, "gamer": GAMER,
+    "117-labs": LABS,
 }
 
 
@@ -1363,3 +1384,17 @@ def resolve_packages(name: str) -> List[Item]:
 
 def brewfile_lines(items) -> List[str]:
     return [f'{"cask" if i.kind == "cask" else "brew"} "{i.full_name}"' for i in items]
+
+
+def install_commands(items) -> List[List[str]]:
+    """brew arguments to install `items`, batched: one command for all formulae and one for all casks.
+    A single `brew install a b c` downloads in parallel and starts brew once, which is several times
+    faster than one `brew install` per package."""
+    formulae = [i.full_name for i in items if i.kind == "formula"]
+    casks = [i.full_name for i in items if i.kind == "cask"]
+    cmds: List[List[str]] = []
+    if formulae:
+        cmds.append(["install", *formulae])
+    if casks:
+        cmds.append(["install", "--cask", *casks])
+    return cmds

@@ -49,7 +49,7 @@ SYSTEM = cd.MAC if platform.system() == "Darwin" else cd.LINUX
 ALL, SUGGEST, KITS, CART = "★ All", "✨ Suggestions", "📦 Kits", "🛒 My list"
 SEARCH = "🔎 Homebrew search"
 EXTRA_CAT = "Homebrew search"
-PROFILES = [("All", None), ("Dev", cd.DEV), ("SRE / Cloud", cd.SRE), ("QA", cd.QA),
+PROFILES = [("All", None), ("117-labs (by 1985epma)", cd.LABS), ("Dev", cd.DEV), ("SRE / Cloud", cd.SRE), ("QA", cd.QA),
             ("Data Scientist", cd.DS), ("Data Engineer", cd.DE), ("Support & Network", cd.NET),
             ("Security", cd.SEC), ("Design (web, video, graphics)", cd.DESIGN), ("DJ / Music", cd.DJ),
             ("Office", cd.OFFICE), ("Vendors (Microsoft, Oracle, Apple, Open Source, Red Hat, JetBrains)", cd.VENDOR),
@@ -609,6 +609,8 @@ class App(tk.Tk):
 
     @staticmethod
     def page_url(item: cd.Item) -> str:
+        if item.homepage:
+            return item.homepage
         if item.tap:
             user, repo = item.tap.split("/")
             return f"https://github.com/{user}/homebrew-{repo}"
@@ -622,7 +624,7 @@ class App(tk.Tk):
     def install_selected(self) -> None:
         obj, _ = self.selected()
         if isinstance(obj, cd.Kit):
-            cmds = [i.install_cmd for i in self.kit_items(obj) if not self.is_installed(i)]
+            cmds = cd.install_commands([i for i in self.kit_items(obj) if not self.is_installed(i)])
         elif obj is not None:
             cmds = [obj.install_cmd]
         else:
@@ -708,25 +710,38 @@ class App(tk.Tk):
                    HOMEBREW_NO_ENV_HINTS="1", NONINTERACTIVE="1")
         askpass = ensure_askpass()
 
+        def run_one(args: List[str]) -> int:
+            self.log_q.put(("cmd", f"\n$ brew {' '.join(args)}\n"))
+            cmd_env = dict(env)
+            # Only cask installs may need sudo; expose the askpass helper to those commands alone, and
+            # tell the dialog which package(s) ask for the password.
+            if askpass and args and args[0] in ("install", "reinstall") and "--cask" in args:
+                cmd_env["SUDO_ASKPASS"] = askpass
+                cmd_env["BREWCAT_PKG"] = ", ".join(a for a in args[1:] if not a.startswith("-"))
+            try:
+                p = subprocess.Popen(self.brew_cmd(*args), stdout=subprocess.PIPE,
+                                     stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
+                                     text=True, env=cmd_env)
+                for line in p.stdout:  # type: ignore[union-attr]
+                    self.log_q.put(("out", line))
+                p.wait()
+                self.log_q.put(("info", f"→ exit code {p.returncode}\n"))
+                return p.returncode
+            except OSError as exc:
+                self.log_q.put(("err", f"Error: {exc}\n"))
+                return 1
+
         def worker() -> None:
             for args in cmds:
-                self.log_q.put(("cmd", f"\n$ brew {' '.join(args)}\n"))
-                cmd_env = dict(env)
-                # Only cask installs may need sudo; expose the askpass helper to those commands alone, and
-                # tell the dialog which package asks for the password.
-                if askpass and args and args[0] in ("install", "reinstall") and "--cask" in args:
-                    cmd_env["SUDO_ASKPASS"] = askpass
-                    cmd_env["BREWCAT_PKG"] = next((a for a in reversed(args) if not a.startswith("-")), "")
-                try:
-                    p = subprocess.Popen(self.brew_cmd(*args), stdout=subprocess.PIPE,
-                                         stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
-                                         text=True, env=cmd_env)
-                    for line in p.stdout:  # type: ignore[union-attr]
-                        self.log_q.put(("out", line))
-                    p.wait()
-                    self.log_q.put(("info", f"→ exit code {p.returncode}\n"))
-                except OSError as exc:
-                    self.log_q.put(("err", f"Error: {exc}\n"))
+                code = run_one(args)
+                names = [a for a in args[1:] if not a.startswith("-")]
+                if code != 0 and args[0] == "install" and len(names) > 1:
+                    # One bad package must not block the others: retry them one by one (already
+                    # installed ones are skipped by brew).
+                    self.log_q.put(("info", "↻ batch failed, retrying package by package…\n"))
+                    flags = [a for a in args[1:] if a.startswith("-")]
+                    for name in names:
+                        run_one(["install", *flags, name])
             self.log_q.put(("done", ""))
 
         threading.Thread(target=worker, daemon=True).start()
