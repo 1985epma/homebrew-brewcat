@@ -16,7 +16,12 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python-version: ["3.9", "3.13"]  # oldest supported and newest
+        python-version: ["3.13"]  # newest
+        include:
+          # Oldest supported Python (requires-python 3.9). setup-python has no 3.9 build for ubuntu-latest
+          # (Ubuntu 26.04), so that leg is pinned to 24.04.
+          - {os: ubuntu-24.04, python-version: "3.9"}
+          - {os: macos-latest, python-version: "3.9"}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
