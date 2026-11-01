@@ -8,7 +8,6 @@ cask "brewcat" do
   homepage "https://github.com/1985epma/homebrew-brewcat"
 
   depends_on formula: "python-tk"
-  depends_on macos: :big_sur
 
   app "brewcat.app"
 
