@@ -91,7 +91,7 @@ def os_description() -> str:
         name = f"macOS {platform.mac_ver()[0]}"
         try:
             out = subprocess.run(["/usr/sbin/sysctl", "-n", "hw.optional.arm64", "sysctl.proc_translated"],
-                                 capture_output=True, text=True, timeout=5).stdout.split()
+                                 capture_output=True, text=True, timeout=5, check=False).stdout.split()
         except (OSError, subprocess.SubprocessError):
             out = []
         if machine == "x86_64" and out[:1] == ["1"]:

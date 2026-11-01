@@ -3,7 +3,7 @@ import os
 
 import pytest
 
-import extras_tab as e
+import extras_core as e
 
 
 @pytest.mark.parametrize("spec", [

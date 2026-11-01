@@ -1,8 +1,6 @@
-[project]
-name = "brewcat"
-description = "Visual catalog of Homebrew packages, skills and MCP servers"
-requires-python = ">=3.9"
-dynamic = []
+# Tool configuration only. brewcat is installed by Homebrew/the .dmg, not built from this file, so there is
+# deliberately no [project] table (it would need a version and a build backend to be valid packaging metadata).
+# The minimum Python (3.9) is enforced by ruff's target-version below and by the 3.9 job in CI.
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -15,3 +13,12 @@ target-version = "py39"
 [tool.ruff.lint]
 # Real bugs only (pyflakes + syntax/runtime errors); style is not enforced yet.
 select = ["E4", "E7", "E9", "F"]
+
+[tool.mypy]
+# Newer than the runtime floor (3.9) because mypy no longer accepts python_version = "3.9"; the code is still
+# checked for 3.9 syntax by ruff and run on 3.9 in CI.
+python_version = "3.10"
+ignore_missing_imports = true
+check_untyped_defs = true
+files = ["app.py", "brewenv.py", "catalog_data.py", "cli.py", "extras_core.py", "extras_tab.py", "gui.py",
+         "help_text.py", "launcher.py", "logo.py"]

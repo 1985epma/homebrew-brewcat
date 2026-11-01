@@ -14,7 +14,8 @@ from tkinter import filedialog, messagebox, ttk
 from typing import Dict, List, Optional, Set, Tuple
 
 import catalog_data as cd
-from brewenv import apple_silicon, brew_command, find_brew
+from brewenv import apple_silicon, brew_command, find_brew, install_with_retry
+from brewrunner import BrewRunner
 from help_text import HELP, VERSION, os_description
 from extras_tab import McpTab, SkillsTab
 from logo import draw_canvas as draw_logo
@@ -108,6 +109,7 @@ class App(tk.Tk):
         self.installed: Dict[str, Set[str]] = {"formula": set(), "cask": set()}
         self.cart: Set[str] = set()
         self.busy = False
+        self.runner = BrewRunner()  # the brew child of the current batch; stopped when the window is closed
         self.log_q: "queue.Queue[Tuple[str, object]]" = queue.Queue()
         self.rows: Dict[str, object] = {}  # iid -> Item | Kit
         self.reasons: Dict[str, str] = {}
@@ -121,6 +123,7 @@ class App(tk.Tk):
         self.category = ALL
 
         self._build_ui()
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
         self.search.trace_add("write", self._on_search_change)
         self.after(100, self._poll_log)
         self.createcommand("tk::mac::ShowAbout", self.show_about)  # macOS app menu > About brewcat
@@ -299,7 +302,7 @@ class App(tk.Tk):
         def worker() -> None:
             try:
                 out = subprocess.run(self.brew_cmd("--version"), capture_output=True, text=True,
-                                     timeout=15).stdout.split("\n")[0] if self.brew else "not found"
+                                     timeout=15, check=False).stdout.split("\n")[0] if self.brew else "not found"
             except (OSError, subprocess.SubprocessError):
                 out = "unavailable"
             self.log_q.put(("call", lambda: values["Homebrew"].winfo_exists() and
@@ -321,7 +324,17 @@ class App(tk.Tk):
         self.bind_all("<F1>", lambda _e: self.show_help())
 
     def brew_cmd(self, *args: str) -> List[str]:
+        if self.brew is None:
+            raise RuntimeError("brew not found")  # callers check self.brew first
         return brew_command(self.brew, *args)
+
+    def _on_close(self) -> None:
+        """Closing the window must not leave a brew child running unnoticed in the background."""
+        if self.busy and not messagebox.askyesno("Quit brewcat", "An installation is still running. "
+                                                                 "Quit and stop it?"):
+            return
+        self.runner.terminate()
+        self.destroy()
 
     # ───────────────────── Rosetta 2 (Apple Silicon) ─────────────────────
     @staticmethod
@@ -355,7 +368,8 @@ class App(tk.Tk):
             script = 'do shell script "/usr/sbin/softwareupdate --install-rosetta --agree-to-license" ' \
                      'with administrator privileges'
             try:
-                r = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=900)
+                r = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=900,
+                                   check=False)
                 self.log_q.put(("out", (r.stdout + r.stderr).strip() + "\n"))
                 ok = r.returncode == 0
             except (OSError, subprocess.SubprocessError) as exc:
@@ -385,7 +399,7 @@ class App(tk.Tk):
             for kind, flag in (("formula", "--formulae"), ("cask", "--casks")):
                 try:
                     out = subprocess.run(self.brew_cmd("search", flag, words[0]), capture_output=True,
-                                         text=True, timeout=30).stdout
+                                         text=True, timeout=30, check=False).stdout
                 except (OSError, subprocess.SubprocessError):
                     continue
                 for name in out.split():
@@ -419,7 +433,8 @@ class App(tk.Tk):
         def worker() -> None:
             try:
                 out = subprocess.run(self.brew_cmd("desc", f"--{item.kind}", item.full_name),
-                                     capture_output=True, text=True, timeout=30).stdout.strip()
+                                     capture_output=True, text=True, timeout=30,
+                                     check=False).stdout.strip()
             except (OSError, subprocess.SubprocessError):
                 out = ""
             text = out.split(":", 1)[1].strip() if ":" in out else (out or "No description available.")
@@ -453,6 +468,7 @@ class App(tk.Tk):
             for t in i.tags:
                 weights[t] = weights.get(t, 0) + 1
         prof = self._visible_profile()
+        essentials = {k for p in ([prof] if prof else cd.ESSENTIALS) for k in cd.ESSENTIALS[p]}
         out: List[Tuple[int, cd.Item, str]] = []
         for item in cd.ITEMS:
             if self.is_installed(item) or not self._matches(item):
@@ -463,7 +479,7 @@ class App(tk.Tk):
             if shared:
                 srcs = [h.name for h in have if set(h.tags) & set(shared)][:3]
                 reason = f"Pairs well with what you use: {', '.join(srcs)}"
-            if item.key in sum((cd.ESSENTIALS[p] for p in ([prof] if prof else cd.ESSENTIALS)), []):
+            if item.key in essentials:
                 score += 3
                 reason = reason or "Essential for this profile"
             if score:
@@ -680,7 +696,7 @@ class App(tk.Tk):
         self._log("info", f"Brewfile saved to {path}  (use: brew bundle --file={path})\n")
 
     # ───────────────────────── brew ─────────────────────────
-    def _log(self, tag: str, text: object) -> None:
+    def _log(self, tag: str, text: str) -> None:
         self.log.config(state="normal")
         self.log.insert("end", text)
         self.log.see("end")
@@ -697,7 +713,7 @@ class App(tk.Tk):
                 elif tag == "installed":
                     self._set_installed(text)  # type: ignore[arg-type]
                 else:
-                    self._log(tag, text)
+                    self._log(tag, str(text))
         except queue.Empty:
             pass
         self.after(100, self._poll_log)
@@ -719,6 +735,10 @@ class App(tk.Tk):
         env = dict(os.environ, HOMEBREW_NO_ANALYTICS="1", HOMEBREW_NO_COLOR="1",
                    HOMEBREW_NO_ENV_HINTS="1", NONINTERACTIVE="1")
         askpass = ensure_askpass()
+        self.runner.reset()
+
+        def emit(tag: str, text: str) -> None:
+            self.log_q.put((tag, text))
 
         def run_one(args: List[str]) -> int:
             self.log_q.put(("cmd", f"\n$ brew {' '.join(args)}\n"))
@@ -728,30 +748,17 @@ class App(tk.Tk):
             if askpass and args and args[0] in ("install", "reinstall") and "--cask" in args:
                 cmd_env["SUDO_ASKPASS"] = askpass
                 cmd_env["BREWCAT_PKG"] = ", ".join(a for a in args[1:] if not a.startswith("-"))
-            try:
-                p = subprocess.Popen(self.brew_cmd(*args), stdout=subprocess.PIPE,
-                                     stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
-                                     text=True, env=cmd_env)
-                for line in p.stdout:  # type: ignore[union-attr]
-                    self.log_q.put(("out", line))
-                p.wait()
-                self.log_q.put(("info", f"→ exit code {p.returncode}\n"))
-                return p.returncode
-            except OSError as exc:
-                self.log_q.put(("err", f"Error: {exc}\n"))
-                return 1
+            return self.runner.run(self.brew_cmd(*args), emit, cmd_env)
+
+        def on_retry() -> None:
+            if not self.runner.cancelled:
+                self.log_q.put(("info", "↻ batch failed, retrying package by package…\n"))
 
         def worker() -> None:
             for args in cmds:
-                code = run_one(args)
-                names = [a for a in args[1:] if not a.startswith("-")]
-                if code != 0 and args[0] == "install" and len(names) > 1:
-                    # One bad package must not block the others: retry them one by one (already
-                    # installed ones are skipped by brew).
-                    self.log_q.put(("info", "↻ batch failed, retrying package by package…\n"))
-                    flags = [a for a in args[1:] if a.startswith("-")]
-                    for name in names:
-                        run_one(["install", *flags, name])
+                if self.runner.cancelled:
+                    break
+                install_with_retry(run_one, args, on_retry)
             self.log_q.put(("done", ""))
 
         threading.Thread(target=worker, daemon=True).start()
@@ -766,7 +773,7 @@ class App(tk.Tk):
             for kind in ("formula", "cask"):
                 try:
                     out = subprocess.run(self.brew_cmd("list", f"--{kind}", "-1"), capture_output=True,
-                                         text=True, timeout=60).stdout
+                                         text=True, timeout=60, check=False).stdout
                     res[kind] = set(out.split())
                 except (OSError, subprocess.SubprocessError):
                     res[kind] = set()

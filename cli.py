@@ -11,10 +11,11 @@ import json
 import os
 import platform
 import shutil
+import signal
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, NoReturn, Optional
 
 import brewenv
 import catalog_data as cd
@@ -25,7 +26,7 @@ OK, WARN, FAIL = "OK", "WARN", "FAIL"
 
 
 class _Parser(argparse.ArgumentParser):
-    def error(self, message: str) -> None:  # argparse prints usage and exits with 2 by default
+    def error(self, message: str) -> NoReturn:  # argparse prints usage and exits with 2 by default
         self.print_usage(sys.stderr)
         self.exit(2, f"brewcat: error: {message}\nTry `brewcat --help`.\n")
 
@@ -84,7 +85,7 @@ def _check(name: str, status: str, detail: str, hint: str = "") -> Dict[str, str
 
 def _run(cmd: List[str], timeout: int = 15) -> str:
     try:
-        return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout).stdout.strip()
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False).stdout.strip()
     except (OSError, subprocess.SubprocessError):
         return ""
 
@@ -335,19 +336,31 @@ def cmd_install(ns: argparse.Namespace) -> int:
         if not sys.stdin.isatty():
             print("brewcat: confirmation needed but there is no terminal; pass --yes to proceed.", file=sys.stderr)
             return 2
-        if input("Install these? [y/N] ").strip().lower() not in ("y", "yes"):
+        try:
+            answer = input("Install these? [y/N] ").strip().lower()
+        except (KeyboardInterrupt, EOFError):  # Ctrl-C / Ctrl-D at the prompt is a "no", not a crash
+            print("\nCancelled.", file=sys.stderr)
+            return 130
+        if answer not in ("y", "yes"):
             print("Cancelled.")
             return 1
+
+    def run_brew(args: List[str]) -> int:
+        code = subprocess.run(brewenv.brew_command(brew, *args), check=False).returncode
+        if code in (-signal.SIGINT, 128 + signal.SIGINT):  # brew itself was interrupted: cancel, do not retry
+            raise KeyboardInterrupt
+        return code
+
     failed = 0
-    for c in cmds:
-        print(f"\n$ brew {' '.join(c)}", flush=True)
-        code = subprocess.run(brewenv.brew_command(brew, *c)).returncode
-        names = [a for a in c[1:] if not a.startswith("-")]
-        if code != 0 and len(names) > 1:  # one bad package must not block the others
-            print("↻ batch failed, retrying package by package…", flush=True)
-            flags = [a for a in c[1:] if a.startswith("-")]
-            code = max(subprocess.run(brewenv.brew_command(brew, "install", *flags, n)).returncode for n in names)
-        failed += code != 0
+    try:
+        for c in cmds:
+            print(f"\n$ brew {' '.join(c)}", flush=True)
+            code = brewenv.install_with_retry(
+                run_brew, c, lambda: print("↻ batch failed, retrying package by package…", flush=True))
+            failed += code != 0
+    except KeyboardInterrupt:
+        print("\nCancelled.", file=sys.stderr)
+        return 130
     return 1 if failed else 0
 
 

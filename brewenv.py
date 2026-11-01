@@ -6,7 +6,7 @@ import platform
 import shutil
 import subprocess
 import sys
-from typing import Optional
+from typing import Callable, List, Optional, Sequence
 
 BREW_CANDIDATES = [
     "/opt/homebrew/bin/brew",
@@ -28,7 +28,7 @@ def apple_silicon() -> bool:
         return True
     try:
         return subprocess.run(["/usr/sbin/sysctl", "-n", "hw.optional.arm64"], capture_output=True,
-                              text=True, timeout=5).stdout.strip() == "1"
+                              text=True, timeout=5, check=False).stdout.strip() == "1"
     except (OSError, subprocess.SubprocessError):
         return False
 
@@ -47,3 +47,18 @@ def brew_command(brew: str, *args: str) -> list:
         if brew.startswith("/usr/local"):
             return ["/usr/bin/arch", "-x86_64", brew, *args]
     return [brew, *args]
+
+
+def install_with_retry(run: Callable[[List[str]], int], args: Sequence[str],
+                       on_retry: Callable[[], None] = lambda: None) -> int:
+    """Run `brew install a b c` (args = ["install", ...flags, "a", "b", "c"]) through `run`, which executes a
+    brew argument list and returns its exit code. If the batch fails, retry package by package so one bad
+    package cannot block the others (brew skips the ones already installed). Returns the worst exit code.
+    The same policy is used by the window and the command line."""
+    code = run(list(args))
+    names = [a for a in args[1:] if not a.startswith("-")]
+    if code == 0 or args[0] != "install" or len(names) < 2:
+        return code
+    on_retry()
+    flags = [a for a in args[1:] if a.startswith("-")]
+    return max(run(["install", *flags, name]) for name in names)
