@@ -7,20 +7,27 @@ DEST="${BREWCAT_HOME:-$HOME/.local/share/brewcat}"
 BIN="$HOME/.local/bin"
 
 command -v git >/dev/null || { echo "git is required"; exit 1; }
+command -v python3 >/dev/null || { echo "python3 is required"; exit 1; }
+SUDO=sudo; [ "$(id -u)" = 0 ] && SUDO=""
 
 # Tk is required for the GUI.
 if ! python3 -c "import tkinter" 2>/dev/null; then
-  if command -v apt-get >/dev/null; then sudo apt-get install -y python3-tk
-  elif command -v dnf >/dev/null; then sudo dnf install -y python3-tkinter
-  elif command -v pacman >/dev/null; then sudo pacman -S --noconfirm tk
+  if command -v apt-get >/dev/null; then $SUDO apt-get update && $SUDO apt-get install -y python3-tk
+  elif command -v dnf >/dev/null; then $SUDO dnf install -y python3-tkinter
+  elif command -v pacman >/dev/null; then $SUDO pacman -S --noconfirm tk
+  elif command -v zypper >/dev/null; then $SUDO zypper --non-interactive install python3-tk
+  elif command -v apk >/dev/null; then $SUDO apk add py3-tkinter
   elif command -v brew >/dev/null; then brew install python-tk
   else echo "Please install Python's Tk bindings (python3-tk) and re-run."; exit 1; fi
 fi
 command -v brew >/dev/null || echo "Note: Homebrew not found. Install it from https://brew.sh to install packages from the app."
 
 # Install a released tag instead of the moving `main` branch. Pin one with: BREWCAT_REF=v0.1.2.3
-REF="${BREWCAT_REF:-$(git ls-remote --tags --refs "$REPO" 'v*' | awk -F/ '{print $NF}' | sort -V | tail -1)}"
-REF="${REF:-main}"
+if [ -z "${BREWCAT_REF:-}" ]; then
+  TAGS=$(git ls-remote --tags --refs "$REPO" 'v*') || { echo "Cannot reach GitHub ($REPO). Check your connection and try again."; exit 1; }
+  BREWCAT_REF=$(printf '%s\n' "$TAGS" | awk -F/ '{print $NF}' | sort -V | tail -1)
+fi
+REF="${BREWCAT_REF:-main}"
 if [ -d "$DEST/.git" ]; then
   git -C "$DEST" fetch --depth 1 origin "$REF"
   git -C "$DEST" -c advice.detachedHead=false checkout -q FETCH_HEAD
@@ -44,6 +51,7 @@ Type=Application
 Name=brewcat
 Comment=Catalog of Homebrew packages, skills and MCP servers
 Exec=$BIN/brewcat
+Icon=$DEST/assets/brewcat.png
 Terminal=false
 Categories=Development;Utility;
 DESKTOP

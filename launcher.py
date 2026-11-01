@@ -12,6 +12,36 @@ from typing import Optional
 from help_text import VERSION
 
 
+# The copied Python stub links to a versioned Homebrew path, so after `brew upgrade python` + `brew cleanup` it can
+# no longer load. Check that before using it; otherwise start through the current Homebrew Python, whose
+# ensure_branded_launcher() rebuilds this bundle (BREWCAT_BRANDED must not be set for that).
+LAUNCHER_SCRIPT = """#!/bin/bash
+export TK_SILENCE_DEPRECATION=1
+@HIDDEN@HERE="$(cd "$(dirname "$0")" && pwd)"
+if "$HERE/brewcat-python" -c "import tkinter" >/dev/null 2>&1; then
+  export BREWCAT_BRANDED=1
+  exec "$HERE/brewcat-python" "@SCRIPT@" "$@"
+fi
+for PY in /opt/homebrew/bin/python3 /usr/local/bin/python3; do
+  [ -x "$PY" ] && exec "$PY" "@SCRIPT@" "$@"
+done
+/usr/bin/osascript -e 'display dialog "brewcat needs Homebrew and python-tk.\\n\\nInstall them with:\\n  brew install python-tk" buttons {"OK"} default button "OK" with icon caution with title "brewcat"'
+"""
+
+
+def bundle_state() -> Optional[str]:
+    """None when ~/Applications/brewcat.app is healthy, else why it is not (used by `brewcat doctor`)."""
+    base = os.path.expanduser("~/Applications/brewcat.app")
+    try:
+        with open(os.path.join(base, "Contents/.brewcat-build")) as fh:
+            _version, stub, _script = fh.read().split("|", 2)
+    except (OSError, ValueError):
+        return "build marker missing"
+    if not os.path.exists(stub):
+        return "it was built from a Python that has since been removed"
+    return None
+
+
 def build_app_bundle() -> Optional[str]:
     """Create ~/Applications/brewcat.app (macOS) so brewcat shows up in Launchpad, Spotlight and Finder.
     The bundle holds a copy of Python's launcher stub, so macOS shows "brewcat" and the cat icon in the
@@ -31,8 +61,12 @@ def build_app_bundle() -> Optional[str]:
     py_exe, launcher = os.path.join(macos, "brewcat-python"), os.path.join(macos, "brewcat")
     marker = os.path.join(base, "Contents/.brewcat-build")
     want = f"{VERSION}|{os.path.realpath(stub)}|{script}"
-    if not (os.path.exists(py_exe) and os.path.exists(launcher) and os.path.exists(marker)
-            and open(marker).read() == want):
+    try:
+        with open(marker) as fh:
+            built = fh.read()
+    except OSError:
+        built = ""
+    if not (os.path.exists(py_exe) and os.path.exists(launcher) and built == want):
         shutil.rmtree(base, ignore_errors=True)
         os.makedirs(macos)
         os.makedirs(os.path.join(base, "Contents/Resources"))
@@ -42,8 +76,8 @@ def build_app_bundle() -> Optional[str]:
                 shutil.copy2(icns, os.path.join(base, "Contents/Resources/brewcat.icns"))
                 break
         with open(launcher, "w") as fh:  # what Finder/Launchpad run on double-click
-            fh.write(f'#!/bin/bash\nexport BREWCAT_BRANDED=1 TK_SILENCE_DEPRECATION=1\n'
-                     f'exec "$(dirname "$0")/brewcat-python" "{script}" "$@"\n')
+            hidden = "export BREWCAT_HIDDEN_APP=1\n" if os.environ.get("BREWCAT_HIDDEN_APP") else ""
+            fh.write(LAUNCHER_SCRIPT.replace("@HIDDEN@", hidden).replace("@SCRIPT@", script))
         os.chmod(launcher, 0o755)
         with open(os.path.join(base, "Contents/Info.plist"), "w") as fh:
             fh.write("""<?xml version="1.0" encoding="UTF-8"?>
@@ -52,12 +86,14 @@ def build_app_bundle() -> Optional[str]:
 <key>CFBundleName</key><string>brewcat</string>
 <key>CFBundleDisplayName</key><string>brewcat</string>
 <key>CFBundleIdentifier</key><string>com.github.1985epma.brewcat</string>
+<key>CFBundleVersion</key><string>%s</string>
+<key>CFBundleShortVersionString</key><string>%s</string>
 <key>CFBundleExecutable</key><string>brewcat</string>
 <key>CFBundleIconFile</key><string>brewcat</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>NSHighResolutionCapable</key><true/>
 </dict></plist>
-""")
+""" % (VERSION, VERSION))
         with open(marker, "w") as fh:
             fh.write(want)
     return py_exe

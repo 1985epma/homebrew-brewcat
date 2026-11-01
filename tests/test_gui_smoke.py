@@ -6,10 +6,12 @@ tk = pytest.importorskip("tkinter")
 
 @pytest.fixture
 def window():
-    import app
+    import gui as app
     try:
         win = app.App()
     except tk.TclError as exc:
+        if "display" not in str(exc):  # a real Tk error (e.g. a cursor name that only exists on macOS) must fail
+            raise
         pytest.skip(f"no display: {exc}")
     win.update()
     yield win
@@ -17,7 +19,7 @@ def window():
 
 
 def test_every_profile_and_category_renders(window):
-    import app
+    import gui as app
     for label, _ in app.PROFILES:
         window.profile.set(label)
         window._on_profile()

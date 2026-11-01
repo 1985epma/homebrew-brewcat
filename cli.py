@@ -162,11 +162,17 @@ def collect_checks() -> List[Dict[str, str]]:
                              "Install git (brew install git)"))
 
     if mac:
+        import launcher as launcher_mod  # noqa: PLC0415
         user_app = Path.home() / "Applications/brewcat.app"
         sys_app = Path("/Applications/brewcat.app")
         if user_app.exists() or sys_app.exists():
             where = "~/Applications" if user_app.exists() else "/Applications"
-            checks.append(_check("brewcat.app", OK, f"found in {where}"))
+            problem = launcher_mod.bundle_state() if user_app.exists() else None
+            if problem:
+                checks.append(_check("brewcat.app", WARN, f"found in {where} but {problem}",
+                                     "Run `brewcat --install-app` to rebuild it"))
+            else:
+                checks.append(_check("brewcat.app", OK, f"found in {where}"))
         else:
             checks.append(_check("brewcat.app", WARN, "not in ~/Applications or /Applications",
                                  "Run `brewcat --install-app` or `brew install --cask 1985epma/brewcat/brewcat`"))
@@ -188,8 +194,9 @@ def doctor(as_json: bool) -> int:
             if c["hint"]:
                 print(f"       {'':<{width}}  → {c['hint']}")
         warns = sum(c["status"] == WARN for c in checks)
-        print(f"\n{'Problems found' if failed else 'No blocking problems'}"
-              f"{f' ({warns} warning(s))' if warns else ''}.")
+        fails = sum(c["status"] == FAIL for c in checks)
+        counts = ", ".join(x for x in (f"{fails} failure(s)" if fails else "", f"{warns} warning(s)" if warns else "") if x)
+        print(f"\n{'Problems found' if failed else 'No blocking problems'}{f' ({counts})' if counts else ''}.")
     return 1 if failed else 0
 
 
