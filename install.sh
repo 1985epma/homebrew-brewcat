@@ -11,13 +11,14 @@ command -v python3 >/dev/null || { echo "python3 is required"; exit 1; }
 SUDO=sudo; [ "$(id -u)" = 0 ] && SUDO=""
 
 # Tk is required for the GUI.
+tk_fail() { echo "Could not install Tk for Python (python3-tk). Install it yourself and run this again."; exit 1; }
 if ! python3 -c "import tkinter" 2>/dev/null; then
-  if command -v apt-get >/dev/null; then $SUDO apt-get update && $SUDO apt-get install -y python3-tk
-  elif command -v dnf >/dev/null; then $SUDO dnf install -y python3-tkinter
-  elif command -v pacman >/dev/null; then $SUDO pacman -S --noconfirm tk
-  elif command -v zypper >/dev/null; then $SUDO zypper --non-interactive install python3-tk
-  elif command -v apk >/dev/null; then $SUDO apk add py3-tkinter
-  elif command -v brew >/dev/null; then brew install python-tk
+  if command -v apt-get >/dev/null; then { $SUDO apt-get update && $SUDO apt-get install -y python3-tk; } || tk_fail
+  elif command -v dnf >/dev/null; then $SUDO dnf install -y python3-tkinter || tk_fail
+  elif command -v pacman >/dev/null; then $SUDO pacman -S --noconfirm tk || tk_fail
+  elif command -v zypper >/dev/null; then $SUDO zypper --non-interactive install python3-tk || tk_fail
+  elif command -v apk >/dev/null; then $SUDO apk add py3-tkinter || tk_fail
+  elif command -v brew >/dev/null; then brew install python-tk || tk_fail
   else echo "Please install Python's Tk bindings (python3-tk) and re-run."; exit 1; fi
 fi
 command -v brew >/dev/null || echo "Note: Homebrew not found. Install it from https://brew.sh to install packages from the app."

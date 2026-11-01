@@ -28,7 +28,7 @@ while (( $# )); do
   shift
 done
 [[ -n $VERSION ]] || usage
-[[ $VERSION =~ ^[0-9]+(\.[0-9]+){2,3}$ ]] || die "version must look like 0.1.3 or 0.1.2.7"
+[[ $VERSION =~ ^[0-9]+(\.[0-9]+){2,4}$ ]] || die "version must look like 0.1.3, 0.1.2.7 or 0.1.2.7.1"
 TAG="v$VERSION"
 
 CURRENT=$(sed -n 's/^VERSION = "\(.*\)"$/\1/p' help_text.py)
