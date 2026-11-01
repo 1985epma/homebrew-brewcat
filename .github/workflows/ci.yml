@@ -38,9 +38,8 @@ jobs:
         run: python -m pytest --ignore=tests/test_gui_smoke.py
       - name: Shell scripts (syntax)
         run: bash -n install.sh scripts/build-dmg.sh scripts/release.sh
-      - name: Shell scripts (shellcheck, advisory for now)
+      - name: Shell scripts (shellcheck)
         if: runner.os == 'Linux'
-        continue-on-error: true
         run: shellcheck install.sh scripts/*.sh
       - name: Formula and cask parse
         run: ruby -c Formula/brewcat.rb && ruby -c Casks/brewcat.rb
