@@ -1,0 +1,37 @@
+name: Suggest a package or kit
+description: Something missing from the catalog, or a wrong entry
+labels: ["catalog"]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Package name
+      description: The exact Homebrew name, for example `ripgrep` or `cask:obs`. Check with `brew search`.
+    validations:
+      required: true
+  - type: dropdown
+    id: profile
+    attributes:
+      label: Which profile fits?
+      multiple: true
+      options:
+        - Dev
+        - SRE / Cloud
+        - QA
+        - Data Scientist
+        - Data Engineer
+        - Support & Network
+        - Security
+        - Design
+        - DJ / Music
+        - Office
+        - Vendors
+        - Gamer
+        - Other
+  - type: textarea
+    id: why
+    attributes:
+      label: Why should it be in the catalog?
+      description: What it does and who uses it. Is it still maintained? Which license?
+    validations:
+      required: true

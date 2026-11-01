@@ -54,12 +54,17 @@ PROFILES = [("All", None), ("117-labs (by 1985epma)", cd.LABS), ("Dev", cd.DEV),
             ("Gamer", cd.GAMER)]
 
 
+def config_dir() -> str:
+    """Where brewcat keeps its small per-user files (askpass helper, one-time flags)."""
+    return os.path.expanduser("~/Library/Application Support/brewcat" if sys.platform == "darwin"
+                              else "~/.local/share/brewcat")
+
+
 def ensure_askpass() -> Optional[str]:
     """Create a SUDO_ASKPASS helper. brew runs without a terminal, so casks that need `sudo`
     (Microsoft Office, drivers, pkg installers…) would hang; with this helper sudo asks for the
     password in a native dialog instead."""
-    base = os.path.expanduser("~/Library/Application Support/brewcat" if sys.platform == "darwin"
-                              else "~/.local/share/brewcat")
+    base = config_dir()
     path = os.path.join(base, "askpass.sh")
     if sys.platform == "darwin":
         body = ("#!/bin/bash\n"
@@ -84,6 +89,148 @@ def ensure_askpass() -> Optional[str]:
         return path
     except OSError:
         return None
+
+
+class BatchResult:
+    """What happened in one batch of brew commands (no tkinter). Fed by the run_one wrapper in App.run_brew with
+    the arguments and exit code of every brew call, including the package-by-package retries that
+    install_with_retry makes after a failed batch."""
+
+    def __init__(self) -> None:
+        self.calls: List[Tuple[List[str], int]] = []
+
+    def record(self, args: List[str], code: int) -> None:
+        self.calls.append((list(args), code))
+
+    @staticmethod
+    def _names(args: List[str]) -> List[str]:
+        return [a for a in args[1:] if not a.startswith("-")]
+
+    @staticmethod
+    def _flags(args: List[str]) -> Tuple[str, ...]:
+        return tuple(a for a in args[1:] if a.startswith("-"))
+
+    def succeeded(self) -> List[str]:
+        """Packages installed by a call that exited 0."""
+        out: List[str] = []
+        for args, code in self.calls:
+            if code == 0 and args and args[0] == "install":
+                out.extend(n for n in self._names(args) if n not in out)
+        return out
+
+    def _failed_with_flags(self) -> List[Tuple[str, Tuple[str, ...]]]:
+        """A package failed when a single-package install exited non-zero (a failed batch of several is retried
+        package by package, so the culprits show up as single-package calls)."""
+        done = set(self.succeeded())
+        out: List[Tuple[str, Tuple[str, ...]]] = []
+        for args, code in self.calls:
+            names = self._names(args)
+            if code != 0 and args and args[0] == "install" and len(names) == 1 and names[0] not in done \
+                    and all(names[0] != n for n, _ in out):
+                out.append((names[0], self._flags(args)))
+        return out
+
+    def failed_installs(self) -> List[str]:
+        return [n for n, _ in self._failed_with_flags()]
+
+    def failed_other(self) -> List[str]:
+        """Failed commands that are not package installs (e.g. `brew update`); they are reported, not retried."""
+        return ["brew " + " ".join(args) for args, code in self.calls
+                if code != 0 and args and args[0] != "install"]
+
+    def retry_commands(self) -> List[List[str]]:
+        """Install commands for ONLY the failed packages, grouped by flags (so casks stay casks)."""
+        groups: Dict[Tuple[str, ...], List[str]] = {}
+        for name, flags in self._failed_with_flags():
+            groups.setdefault(flags, []).append(name)
+        return [["install", *flags, *names] for flags, names in groups.items()]
+
+
+class _Modal(tk.Toplevel):
+    """Small modal window. The only blocking call is App.wait_window(dialog), so tests can drive the buttons
+    (accept/cancel/skip/...) directly."""
+
+    def __init__(self, parent: tk.Tk, title: str) -> None:
+        super().__init__(parent)
+        self.title(title)
+        self.transient(parent)
+        self.protocol("WM_DELETE_WINDOW", self.close)
+        self.bind("<Escape>", lambda _e: self.close())
+        self.after(50, self._grab)
+
+    def _grab(self) -> None:
+        try:
+            if self.winfo_exists():
+                self.grab_set()  # fails while the window is not mapped yet (Linux); then it is simply not modal
+        except tk.TclError:
+            pass
+
+    def close(self) -> None:
+        self.destroy()
+
+
+class ConfirmDialog(_Modal):
+    """Confirmation with a scrollable text (the install plan) and Install / Cancel. `result` is True only after Install."""
+
+    def __init__(self, parent: tk.Tk, title: str, text: str, ok_label: str = "Install") -> None:
+        super().__init__(parent, title)
+        self.result = False
+        self.geometry("640x420")
+        self.minsize(420, 260)
+        body = ttk.Frame(self, padding=10)
+        body.pack(fill="both", expand=True)
+        buttons = ttk.Frame(body)
+        buttons.pack(side="bottom", fill="x", pady=(8, 0))  # packed first so it stays visible when resized
+        self.btn_ok = ttk.Button(buttons, text=ok_label, command=self.accept)
+        self.btn_cancel = ttk.Button(buttons, text="Cancel", command=self.close)
+        self.btn_ok.pack(side="right")
+        self.btn_cancel.pack(side="right", padx=6)
+        self.text = tk.Text(body, wrap="word", padx=8, pady=6, height=10)
+        sb = ttk.Scrollbar(body, orient="vertical", command=self.text.yview)
+        self.text.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        self.text.pack(side="left", fill="both", expand=True)
+        self.text.insert("1.0", text)
+        self.text.config(state="disabled")
+
+    def accept(self) -> None:
+        self.result = True
+        self.destroy()
+
+
+class WelcomeDialog(_Modal):
+    """First-run welcome. It never installs anything: `choice` is the profile label the user wants to see kits
+    for, or None when skipped/closed."""
+
+    def __init__(self, parent: tk.Tk, default: str = "Dev") -> None:
+        super().__init__(parent, "Welcome to brewcat")
+        self.choice: Optional[str] = None
+        self.profile = tk.StringVar(value=default)
+        self.resizable(False, False)
+        body = ttk.Frame(self, padding=20)
+        body.pack()
+        ttk.Label(body, text="Welcome to brewcat", style="Title.TLabel").pack(anchor="w")
+        ttk.Label(body, wraplength=380, justify="left",
+                  text="brewcat is a catalog of Homebrew packages: browse, pick what you need and install it "
+                       "in a click. Nothing is installed until you confirm.").pack(anchor="w", pady=(8, 12))
+        ttk.Label(body, text="What do you do?").pack(anchor="w")
+        self.combo = ttk.Combobox(body, textvariable=self.profile, values=[p for p, _ in PROFILES],
+                                  width=34, state="readonly")
+        self.combo.pack(anchor="w", pady=(2, 14))
+        buttons = ttk.Frame(body)
+        buttons.pack(fill="x")
+        self.btn_show = ttk.Button(buttons, text="Show me a starter kit", command=self.show_kit)
+        self.btn_skip = ttk.Button(buttons, text="Skip", command=self.skip)
+        self.btn_show.pack(side="right")
+        self.btn_skip.pack(side="right", padx=6)
+
+    def show_kit(self) -> None:
+        self.choice = self.profile.get()
+        self.destroy()
+
+    def skip(self) -> None:
+        self.choice = None
+        self.destroy()
 
 
 class App(tk.Tk):
@@ -116,6 +263,9 @@ class App(tk.Tk):
         self.extra: List[cd.Item] = []  # results of `brew search` outside the curated catalog
         self.extra_desc: Dict[str, str] = {}
         self._search_job: Optional[str] = None
+        self._planning = False  # True while the install plan is being computed in a worker thread
+        self.failed_cmds: List[List[str]] = []  # install commands for the packages that failed in the last batch
+        self.status_var = tk.StringVar(value="")
 
         self.profile = tk.StringVar(value="All")
         self.platform = tk.StringVar(value=SYSTEM)
@@ -128,7 +278,7 @@ class App(tk.Tk):
         self.after(100, self._poll_log)
         self.createcommand("tk::mac::ShowAbout", self.show_about)  # macOS app menu > About brewcat
         self.refresh_installed()
-        self.after(1500, self._check_rosetta)
+        self.after(1500, self._startup_dialogs)
 
     # ───────────────────────── UI ─────────────────────────
     def _build_ui(self) -> None:
@@ -240,6 +390,13 @@ class App(tk.Tk):
         bottom.pack(fill="x", side="bottom")
         self.progress = ttk.Progressbar(bottom, mode="indeterminate")
         self.progress.pack(fill="x", pady=(0, 4))
+        tools = ttk.Frame(bottom)
+        tools.pack(fill="x", pady=(0, 4))
+        ttk.Label(tools, textvariable=self.status_var).pack(side="left")
+        self.btn_copy_log = ttk.Button(tools, text="Copy log", command=self.copy_log)
+        self.btn_retry = ttk.Button(tools, text="Retry failed", command=self.retry_failed, state="disabled")
+        self.btn_copy_log.pack(side="right")
+        self.btn_retry.pack(side="right", padx=6)
         self.log = tk.Text(bottom, height=7, state="disabled", wrap="none", background="#1e1e1e",
                            foreground="#d4d4d4", insertbackground="white")
         self.log.pack(fill="x")
@@ -314,6 +471,11 @@ class App(tk.Tk):
         win = tk.Toplevel(self)
         win.title("brewcat Help")
         win.geometry("820x640")
+        tools = ttk.Frame(win, padding=(10, 6))
+        tools.pack(side="top", fill="x")
+        ttk.Button(tools, text="Copy diagnostics", command=self.copy_diagnostics).pack(side="left")
+        ttk.Label(tools, text="  Copies a redacted report to paste into a GitHub issue.",
+                  style="Sub.TLabel").pack(side="left")
         txt = tk.Text(win, wrap="word", padx=14, pady=10, font=("Menlo", 12) if SYSTEM == cd.MAC else "TkFixedFont")
         sb = ttk.Scrollbar(win, orient="vertical", command=txt.yview)
         txt.configure(yscrollcommand=sb.set)
@@ -322,6 +484,21 @@ class App(tk.Tk):
         txt.insert("1.0", HELP)
         txt.config(state="disabled")
         self.bind_all("<F1>", lambda _e: self.show_help())
+
+    def copy_diagnostics(self) -> None:
+        """Copy the redacted diagnostic report (same text as the command line) to the clipboard."""
+        try:
+            import cli  # lazy: keeps the window import light; cli itself needs no tkinter
+            report = getattr(cli, "diagnostic_report")()  # AttributeError if this version has none
+        except (AttributeError, ImportError):
+            messagebox.showinfo("Diagnostics", "The diagnostic report is not available in this version.")
+            return
+        except Exception as exc:  # noqa: BLE001 - a diagnostics bug must not crash the window
+            messagebox.showerror("Diagnostics", f"Could not build the report: {exc}")
+            return
+        self.clipboard_clear()
+        self.clipboard_append(report)
+        messagebox.showinfo("Diagnostics", "Copied. Paste it in your issue.")
 
     def brew_cmd(self, *args: str) -> List[str]:
         if self.brew is None:
@@ -335,6 +512,47 @@ class App(tk.Tk):
             return
         self.runner.terminate()
         self.destroy()
+
+    # ───────────────────── first run ─────────────────────
+    @staticmethod
+    def welcome_flag() -> str:
+        return os.path.join(config_dir(), "welcome_seen")
+
+    def _startup_dialogs(self) -> None:
+        """One dialog at a time: the welcome (first launch only), then the Rosetta question."""
+        self._maybe_welcome()
+        self._check_rosetta()
+
+    def _maybe_welcome(self) -> bool:
+        """Show the welcome on the very first launch only. It never installs anything. Returns True if shown."""
+        flag = self.welcome_flag()
+        if os.environ.get("BREWCAT_NO_WELCOME") or os.path.exists(flag):
+            return False
+        try:  # written before showing, so closing it in any way (Skip, X, quit) still counts as seen
+            os.makedirs(os.path.dirname(flag), exist_ok=True)
+            open(flag, "w").close()
+        except OSError:
+            pass
+        dlg = WelcomeDialog(self)
+        self.wait_window(dlg)
+        if dlg.choice:
+            self.show_starter_kits(dlg.choice)
+        return True
+
+    def show_starter_kits(self, profile_label: str) -> None:
+        """Set the profile, switch to the Kits view and select the first kit. Does not install anything."""
+        if profile_label in dict(PROFILES):
+            self.profile.set(profile_label)
+        self.category = KITS
+        self.notebook.select(0)
+        self._fill_categories()
+        self.refresh()
+        rows = self.tree.get_children()
+        if rows:
+            self.tree.selection_set(rows[0])
+            self.tree.focus(rows[0])
+            self.tree.see(rows[0])
+            self._on_select()
 
     # ───────────────────── Rosetta 2 (Apple Silicon) ─────────────────────
     @staticmethod
@@ -535,6 +753,7 @@ class App(tk.Tk):
     def _after_refresh(self) -> None:
         self.cart_lbl.config(text=f"List: {len(self.cart)} items")
         self._on_select()
+        self._sync_retry()
 
     # ───────────────────────── detalhes ─────────────────────────
     def selected(self):
@@ -582,7 +801,7 @@ class App(tk.Tk):
         self._sync_buttons(obj)
 
     def _sync_buttons(self, obj) -> None:
-        can = self.brew is not None and not self.busy
+        can = self.brew is not None and not self.busy and not self._planning
 
         def st(ok: bool) -> str:
             return "normal" if ok else "disabled"
@@ -650,17 +869,67 @@ class App(tk.Tk):
     def install_selected(self) -> None:
         obj, _ = self.selected()
         if isinstance(obj, cd.Kit):
-            cmds = cd.install_commands([i for i in self.kit_items(obj) if not self.is_installed(i)])
+            items = [i for i in self.kit_items(obj) if not self.is_installed(i)]
+            cmds = cd.install_commands(items)
         elif obj is not None:
+            items = [obj]
             cmds = [obj.install_cmd]
         else:
             return
         if cmds:
             lines = "\n".join("brew " + " ".join(c) for c in cmds)
-            if messagebox.askyesno("Confirm installation", f"Run the following?\n\n{lines}"):
-                self.run_brew(cmds)
+            self._confirm_install("Confirm installation", items, cmds, f"Run the following?\n\n{lines}")
         else:
             self._log("info", "Everything in this kit is already installed.\n")
+
+    # ───────────────── confirmation with the install plan ─────────────────
+    def _confirm_install(self, title: str, items: List[cd.Item], cmds: List[List[str]], fallback: str) -> None:
+        """Always ask before installing. The plan (what will change) is computed in a worker thread so the window
+        stays responsive; if it cannot be computed the plain confirmation `fallback` is used instead, so a plan
+        problem never blocks an install."""
+        if self._planning:
+            return
+        if not self.brew or not items:
+            self._ask_and_run(title, None, cmds, fallback)
+            return
+        self._planning = True
+        self._set_status("Checking what will change…")
+        self.progress.start(12)
+        self._on_select()  # disables the install buttons while planning
+        brew = self.brew
+
+        def worker() -> None:
+            text: Optional[str] = None
+            try:
+                import plan as plan_mod  # lazy: only needed when installing
+                text = plan_mod.format_plan(plan_mod.build_plan(brew, items))
+            except Exception:  # noqa: BLE001 - any failure falls back to the plain confirmation
+                text = None
+            self.log_q.put(("call", lambda: self._plan_ready(title, text, cmds, fallback)))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _plan_ready(self, title: str, text: Optional[str], cmds: List[List[str]], fallback: str) -> None:
+        self._planning = False
+        self._set_status("")
+        if not self.busy:
+            self.progress.stop()
+        self._on_select()
+        self._ask_and_run(title, text, cmds, fallback)
+
+    def _ask_and_run(self, title: str, plan_text: Optional[str], cmds: List[List[str]], fallback: str) -> None:
+        if plan_text:
+            lines = "\n".join("brew " + " ".join(c) for c in cmds)
+            ok = self._ask_plan(title, f"{plan_text}\n\nWill run:\n{lines}")
+        else:
+            ok = messagebox.askyesno(title, fallback)
+        if ok:
+            self.run_brew(cmds)
+
+    def _ask_plan(self, title: str, text: str) -> bool:
+        dlg = ConfirmDialog(self, title, text)
+        self.wait_window(dlg)  # the only blocking call; tests patch it
+        return dlg.result
 
     def uninstall_selected(self) -> None:
         obj, _ = self.selected()
@@ -674,9 +943,8 @@ class App(tk.Tk):
         if not items:
             messagebox.showinfo("My list", "Nothing to install in the list.")
             return
-        if messagebox.askyesno("Install list", f"Install {len(items)} packages?\n\n"
-                               + ", ".join(i.name for i in items)):
-            self.run_brew([i.install_cmd for i in items])
+        self._confirm_install("Install list", items, [i.install_cmd for i in items],
+                              f"Install {len(items)} packages?\n\n" + ", ".join(i.name for i in items))
 
     def export_brewfile(self) -> None:
         obj, _ = self.selected()
@@ -702,7 +970,10 @@ class App(tk.Tk):
         self.log.see("end")
         self.log.config(state="disabled")
 
-    def _poll_log(self) -> None:
+    def _set_status(self, text: str) -> None:
+        self.status_var.set(text)
+
+    def _drain_log(self) -> None:
         try:
             while True:
                 tag, text = self.log_q.get_nowait()
@@ -716,12 +987,74 @@ class App(tk.Tk):
                     self._log(tag, str(text))
         except queue.Empty:
             pass
+
+    def _poll_log(self) -> None:
+        self._drain_log()
         self.after(100, self._poll_log)
 
     def _finish(self) -> None:
         self.busy = False
         self.progress.stop()
+        self._sync_retry()
         self.refresh_installed()
+
+    def _sync_retry(self) -> None:
+        can = bool(self.failed_cmds) and self.brew is not None and not self.busy and not self._planning
+        self.btn_retry.config(state="normal" if can else "disabled")
+
+    def copy_log(self) -> None:
+        self.clipboard_clear()
+        self.clipboard_append(self.log.get("1.0", "end-1c"))
+        self._set_status("Log copied to clipboard.")
+
+    def _batch_summary(self, result: BatchResult, cancelled: bool) -> None:
+        """Say how the batch went and remember what failed so it can be retried (stopped runs are not failures)."""
+        self.failed_cmds = []
+        if cancelled:
+            self._set_status("Stopped.")
+            self._log("info", "\nStopped before finishing.\n")
+            return
+        failed, other, ok = result.failed_installs(), result.failed_other(), result.succeeded()
+        if failed or other:
+            self.failed_cmds = result.retry_commands()
+            bits = []
+            if failed:
+                bits.append(f"{len(failed)} package{'s' if len(failed) != 1 else ''} failed: {', '.join(failed)}")
+            if other:
+                bits.append(f"{len(other)} command{'s' if len(other) != 1 else ''} failed: {', '.join(other)}")
+            if ok:
+                bits.append(f"{len(ok)} installed")
+            line = "✗ " + "; ".join(bits)
+            if failed:
+                line += ". Use Retry failed to try those again, or Copy log to report it."
+            else:
+                line += ". Use Copy log to report it."
+        elif ok:
+            line = f"✓ {len(ok)} package{'s' if len(ok) != 1 else ''} installed successfully."
+        else:
+            line = "✓ Done."
+        self._log("info", f"\n{line}\n")
+        self._set_status(line)
+
+    def retry_failed(self) -> None:
+        """Re-run the install for ONLY the packages that failed, through the usual confirmation."""
+        if self.busy or self._planning or not self.failed_cmds:
+            return
+        cmds = [list(c) for c in self.failed_cmds]
+        lines = "\n".join("brew " + " ".join(c) for c in cmds)
+        self._confirm_install("Retry failed installs", self._items_for(cmds), cmds,
+                              f"Run the following?\n\n{lines}")
+
+    @staticmethod
+    def _items_for(cmds: List[List[str]]) -> List[cd.Item]:
+        items: List[cd.Item] = []
+        for cmd in cmds:
+            kind = "cask" if "--cask" in cmd else "formula"
+            for name in (a for a in cmd[1:] if not a.startswith("-")):
+                found = next((i for i in cd.BY_KEY.values() if i.kind == kind and i.full_name == name), None)
+                if found is not None and found not in items:
+                    items.append(found)
+        return items
 
     def run_brew(self, cmds: List[List[str]]) -> None:
         if not self.brew:
@@ -730,12 +1063,15 @@ class App(tk.Tk):
         if self.busy:
             return
         self.busy = True
+        self.failed_cmds = []
+        self._set_status("Running brew…")
         self.progress.start(12)
         self._on_select()
         env = dict(os.environ, HOMEBREW_NO_ANALYTICS="1", HOMEBREW_NO_COLOR="1",
                    HOMEBREW_NO_ENV_HINTS="1", NONINTERACTIVE="1")
         askpass = ensure_askpass()
         self.runner.reset()
+        result = BatchResult()
 
         def emit(tag: str, text: str) -> None:
             self.log_q.put((tag, text))
@@ -748,7 +1084,9 @@ class App(tk.Tk):
             if askpass and args and args[0] in ("install", "reinstall") and "--cask" in args:
                 cmd_env["SUDO_ASKPASS"] = askpass
                 cmd_env["BREWCAT_PKG"] = ", ".join(a for a in args[1:] if not a.startswith("-"))
-            return self.runner.run(self.brew_cmd(*args), emit, cmd_env)
+            code = self.runner.run(self.brew_cmd(*args), emit, cmd_env)
+            result.record(args, code)
+            return code
 
         def on_retry() -> None:
             if not self.runner.cancelled:
@@ -759,6 +1097,8 @@ class App(tk.Tk):
                 if self.runner.cancelled:
                     break
                 install_with_retry(run_one, args, on_retry)
+            cancelled = self.runner.cancelled
+            self.log_q.put(("call", lambda: self._batch_summary(result, cancelled)))
             self.log_q.put(("done", ""))
 
         threading.Thread(target=worker, daemon=True).start()

@@ -3,6 +3,7 @@ import json
 import pytest
 
 import cli
+import plan
 from help_text import VERSION
 
 
@@ -48,16 +49,41 @@ def test_kits_listing_and_show(capsys):
     assert code == 1 and "no kit matches" in err
 
 
+def fake_build_plan(extra=("libfoo",), installed=()):
+    """Stands in for plan.build_plan so these tests never reach a real brew."""
+    def build(_brew, items, timeout=60.0):
+        new = [i for i in items if i.full_name not in installed]
+        return plan.Plan([i.full_name for i in new], [i.full_name for i in items if i.full_name in installed], [],
+                         list(extra), [])
+    return build
+
+
 def test_install_dry_run_prints_plan_and_runs_nothing(capsys, monkeypatch):
     monkeypatch.setattr(cli.subprocess, "run", lambda *a, **k: pytest.fail("must not run brew"))
-    monkeypatch.setattr(cli, "_installed", lambda: {"formula": set(), "cask": set()})
+    monkeypatch.setattr(cli.plan, "build_plan", fake_build_plan())
     monkeypatch.setattr(cli.brewenv, "find_brew", lambda: "/x/brew")
     code, out, _ = run(["install", "git pro", "--dry-run", "--platform", "mac"], capsys)
     assert code == 0 and "brew install git gh lazygit git-delta git-lfs pre-commit" in out
+    assert "Summary: 6 to install, 1 extra dependency." in out and "libfoo" in out
+
+
+def test_install_dry_run_without_brew_calls_no_brew(capsys, monkeypatch):
+    monkeypatch.setattr(cli.subprocess, "run", lambda *a, **k: pytest.fail("must not run brew"))
+    monkeypatch.setattr(cli.plan, "build_plan", lambda *a, **k: pytest.fail("must not plan without brew"))
+    monkeypatch.setattr(cli.brewenv, "find_brew", lambda: None)
+    code, out, _ = run(["install", "jq", "--dry-run", "--platform", "mac"], capsys)
+    assert code == 0 and "brew install jq" in out and "Summary" not in out
+
+
+def test_install_everything_already_installed(capsys, monkeypatch):
+    monkeypatch.setattr(cli.plan, "build_plan", fake_build_plan(extra=(), installed=("jq",)))
+    monkeypatch.setattr(cli.brewenv, "find_brew", lambda: "/x/brew")
+    code, out, _ = run(["install", "jq", "--platform", "mac"], capsys)
+    assert code == 0 and "already installed" in out
 
 
 def test_install_without_yes_and_without_terminal_refuses(capsys, monkeypatch):
-    monkeypatch.setattr(cli, "_installed", lambda: {"formula": set(), "cask": set()})
+    monkeypatch.setattr(cli.plan, "build_plan", fake_build_plan())
     monkeypatch.setattr(cli.brewenv, "find_brew", lambda: "/x/brew")
     monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: False, raising=False)
     monkeypatch.setattr(cli.subprocess, "run", lambda *a, **k: pytest.fail("must not run brew"))

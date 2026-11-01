@@ -1,0 +1,39 @@
+name: Something does not work
+description: A crash, a blank window, a failed install or wrong behavior
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected and what you got instead. Screenshots help.
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `brewcat doctor --report`
+      description: |
+        Paste it here. It contains your versions and checks and hides your home folder and user name.
+        Older versions do not have `--report`: run `brewcat doctor` instead.
+      render: markdown
+    validations:
+      required: true
+  - type: dropdown
+    id: how
+    attributes:
+      label: How did you install brewcat?
+      options:
+        - brew install brewcat (formula)
+        - brew install --cask brewcat
+        - .dmg download
+        - install.sh (Linux)
+        - from source
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log (if an install failed)
+      description: Paste the lines from the log area of the window, or the terminal output of `brewcat install`.
+      render: text

@@ -7,18 +7,23 @@ Exit codes: 0 success, 1 a check failed or an operation failed, 2 invalid usage.
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import os
 import platform
+import re
+import shlex
 import shutil
 import signal
+import socket
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict, List, NoReturn, Optional
+from typing import Dict, List, NoReturn, Optional, Set, Tuple
 
 import brewenv
 import catalog_data as cd
+import plan
 from help_text import HELP, VERSION, os_description
 
 TAP = "1985epma/brewcat"
@@ -40,6 +45,8 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="command", metavar="command")
     doc = sub.add_parser("doctor", add_help=False, help="check this machine and print how to fix problems")
     doc.add_argument("--json", action="store_true", help="machine-readable output")
+    doc.add_argument("--report", action="store_true",
+                     help="Markdown report for a GitHub issue (paths and user name redacted; wins over --json)")
     sub.add_parser("help", add_help=False, help="show the full help")
 
     def filters(sp, with_query: bool = False) -> None:
@@ -201,6 +208,49 @@ def doctor(as_json: bool) -> int:
     return 1 if failed else 0
 
 
+def _redact(text: str) -> str:
+    """Hide what identifies the person or machine: the home directory becomes ~, the user and host names <user>/<host>."""
+    homes = {h for h in (os.environ.get("HOME", ""), os.path.expanduser("~"), str(Path.home())) if len(h) > 1}
+    for h in sorted(homes | {os.path.realpath(h) for h in homes}, key=len, reverse=True):
+        text = text.replace(h, "~")
+    users = {os.environ.get(v, "") for v in ("USER", "LOGNAME", "USERNAME")} | {Path.home().name}
+    try:
+        users.add(getpass.getuser())
+    except Exception:  # noqa: BLE001 - getuser can fail with odd uids/containers
+        pass
+    try:
+        hosts = {socket.gethostname()}
+    except OSError:
+        hosts = set()
+    for names, token in ((users, "<user>"), (hosts, "<host>")):
+        for n in sorted((n for n in names if len(n) > 1), key=len, reverse=True):
+            text = re.sub(rf"(?<![A-Za-z0-9]){re.escape(n)}(?![A-Za-z0-9])", token, text)
+    return text
+
+
+def diagnostic_report() -> str:
+    """Markdown for pasting into a GitHub issue. Contains versions and the doctor checks only: no environment
+    variables, file contents, host or user name; the home directory is shown as ~."""
+    try:
+        import tkinter  # noqa: PLC0415 - imported lazily so the CLI works without Tk
+        tk = f"{float(tkinter.TkVersion):g}"
+    except ImportError:
+        tk = "not available"
+    brew = brewenv.find_brew()
+    brew_version = (_run([brew, "--version"]).splitlines() or ["unknown"])[0] if brew else "not found"
+    checks = collect_checks()
+    lines = ["### brewcat diagnostics", "",
+             f"- brewcat: {VERSION}", f"- OS: {os_description()}", f"- Architecture: {platform.machine()}",
+             f"- Python: {platform.python_version()}", f"- Tk: {tk}", f"- Homebrew: {brew_version}", "",
+             "```text"]
+    for c in checks:
+        lines.append(f"[{c['status']}] {c['name']}: {c['detail']}")
+        if c["hint"]:
+            lines.append(f"       fix: {c['hint']}")
+    lines.append("```")
+    return _redact("\n".join(lines)) + "\n"
+
+
 # ───────────────────────── catalog commands (no window) ─────────────────────────
 def _default_platform() -> str:
     return cd.MAC if sys.platform == "darwin" else cd.LINUX
@@ -311,6 +361,16 @@ def _resolve_install_target(target: str, platform_: str):
     return hits[0].full_name, hits
 
 
+def _retry_commands(failed: List[str], casks: Set[str]) -> List[str]:
+    """The `brew install …` lines that retry only `failed` (formulae and casks need separate commands)."""
+    out = []
+    for is_cask in (False, True):
+        names = [n for n in failed if (n in casks) == is_cask]
+        if names:
+            out.append("brew install " + ("--cask " if is_cask else "") + " ".join(shlex.quote(n) for n in names))
+    return out
+
+
 def cmd_install(ns: argparse.Namespace) -> int:
     res = _resolve_install_target(ns.target, ns.platform)
     if isinstance(res, str):
@@ -318,8 +378,15 @@ def cmd_install(ns: argparse.Namespace) -> int:
         return 1
     label, items = res
     brew = brewenv.find_brew()
-    installed = _installed() if brew else None
-    todo = [i for i in items if installed is None or i.name not in installed[i.kind]]
+    pl: Optional[plan.Plan] = None
+    if brew:
+        print("Checking what brew would change…", file=sys.stderr, flush=True)
+        try:
+            pl = plan.build_plan(brew, items)
+        except KeyboardInterrupt:
+            print("\nCancelled.", file=sys.stderr)
+            return 130
+    todo = [i for i in items if pl is None or i.full_name in pl.to_install]
     if not todo:
         print(f"Everything in '{label}' is already installed.")
         return 0
@@ -327,6 +394,8 @@ def cmd_install(ns: argparse.Namespace) -> int:
     printable = ["brew " + " ".join(c) for c in cmds]
     print(f"Plan for '{label}' ({len(todo)} package(s)):")
     print("\n".join("  " + p for p in printable))
+    if pl is not None:
+        print(plan.format_plan(pl))
     if ns.dry_run:
         return 0
     if not brew:
@@ -345,12 +414,16 @@ def cmd_install(ns: argparse.Namespace) -> int:
             print("Cancelled.")
             return 1
 
+    codes: Dict[Tuple[str, ...], int] = {}  # exit code of every brew install run, to tell which package failed
+
     def run_brew(args: List[str]) -> int:
         code = subprocess.run(brewenv.brew_command(brew, *args), check=False).returncode
         if code in (-signal.SIGINT, 128 + signal.SIGINT):  # brew itself was interrupted: cancel, do not retry
             raise KeyboardInterrupt
+        codes[tuple(args)] = code
         return code
 
+    failed_names: List[str] = []
     failed = 0
     try:
         for c in cmds:
@@ -358,10 +431,28 @@ def cmd_install(ns: argparse.Namespace) -> int:
             code = brewenv.install_with_retry(
                 run_brew, c, lambda: print("↻ batch failed, retrying package by package…", flush=True))
             failed += code != 0
+            if code != 0:
+                failed_names += _failed_packages(c, codes)
     except KeyboardInterrupt:
         print("\nCancelled.", file=sys.stderr)
         return 130
+    if failed_names:
+        print(f"\nFailed: {', '.join(failed_names)}", file=sys.stderr)
+        print("Retry only those with:", file=sys.stderr)
+        for line in _retry_commands(failed_names, {i.full_name for i in items if i.kind == "cask"}):
+            print(f"  {line}", file=sys.stderr)
     return 1 if failed else 0
+
+
+def _failed_packages(cmd: List[str], codes: Dict[Tuple[str, ...], int]) -> List[str]:
+    """Packages of the failed `brew install …` command `cmd` that did not install, from the recorded exit codes:
+    a single-package command failed itself; in a batch the package-by-package retry tells which ones."""
+    flags = [a for a in cmd[1:] if a.startswith("-")]
+    names = [a for a in cmd[1:] if not a.startswith("-")]
+    if len(names) == 1:
+        return names
+    bad = [n for n in names if codes.get(("install", *flags, n), 0) != 0]
+    return bad or names
 
 
 def cmd_export(ns: argparse.Namespace) -> int:
@@ -418,6 +509,9 @@ def run(argv: Optional[List[str]] = None) -> Optional[int]:
               else "Could not create ~/Applications/brewcat.app.")
         return 0 if ok else 1
     if ns.command == "doctor":
+        if ns.report:
+            sys.stdout.write(diagnostic_report())
+            return 0
         return doctor(ns.json)
     if ns.command in COMMANDS:
         return COMMANDS[ns.command](ns)

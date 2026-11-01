@@ -8,7 +8,8 @@ tk = pytest.importorskip("tkinter")
 
 
 @pytest.fixture
-def window():
+def window(monkeypatch):
+    monkeypatch.setenv("BREWCAT_NO_WELCOME", "1")  # the first-run welcome is modal; never show it in tests
     import gui as app
     try:
         win = app.App()

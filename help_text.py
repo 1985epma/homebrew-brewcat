@@ -19,6 +19,8 @@ USAGE
   brewcat profiles     list the profile names accepted by -p
   brewcat doctor       check this machine (Python/Tk, Homebrew, Rosetta, tap trust…) and print fixes
   brewcat doctor --json  same, machine-readable (exit code 1 if a check fails)
+  brewcat doctor --report  Markdown to paste into a GitHub issue: versions and checks, with your home folder
+                       shown as ~ and no user name, host name, environment variables or file contents
   brewcat --install-app  macOS: (re)create ~/Applications/brewcat.app for Launchpad/Spotlight
 
 PACKAGES TAB
@@ -61,9 +63,15 @@ MCP TAB
 SAFETY
   brewcat always asks for confirmation before installing or uninstalling anything.
   Command output appears in the log at the bottom of the window.
+  Before installing, `brewcat install` shows what will change: how many packages are new, already installed
+  or outdated, the extra dependencies `brew install --dry-run` says it would add, and a note when casks may ask
+  for your administrator password. Homebrew cannot tell download size or time without downloading, so none is shown.
+  If some packages fail, brewcat lists them ("Failed: a, b"), prints the `brew install …` command that retries
+  only those (with --cask for casks) and exits with code 1. Ctrl-C cancels cleanly (exit code 130).
 
 TROUBLESHOOTING
-  Anything unexpected     Run `brewcat doctor` first; paste its output when asking for help.
+  Anything unexpected     Run `brewcat doctor` first; paste its output when asking for help
+                          (`brewcat doctor --report` is formatted for a GitHub issue and hides personal paths).
   brewcat not in Launchpad/Applications (macOS)  Run `brewcat` once (it creates ~/Applications/brewcat.app)
                           or `brewcat --install-app`.
   "Refusing to load formula … from untrusted tap"   Run once: brew trust 1985epma/brewcat

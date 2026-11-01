@@ -10,11 +10,14 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# Stands in for brew: `list` prints nothing (nothing installed); `install` records its pid and then blocks.
+# Stands in for brew: `list`/`outdated` print nothing (nothing installed); `install --dry-run` (the plan) answers at
+# once; a real `install` records its pid and then blocks.
 FAKE_BREW = """#!/bin/sh
 case "$1" in
-  list) exit 0 ;;
-  install) echo $$ >> "$FAKE_BREW_PIDS"; exec sleep 60 ;;
+  list|outdated) exit 0 ;;
+  install)
+    case "$*" in *--dry-run*) exit 0 ;; esac
+    echo $$ >> "$FAKE_BREW_PIDS"; exec sleep 60 ;;
 esac
 exit 0
 """

@@ -1,6 +1,26 @@
 # brewcat
 
-A visual catalog (Python + Tkinter) of Homebrew packages for developers and gamers, on macOS and Linux.
+**Set up a Mac or Linux machine in minutes: pick what you do, see a starter kit, confirm, install.**
+brewcat is a window and a command line on top of [Homebrew](https://brew.sh). It suggests packages for your
+profile (dev, SRE, QA, security, data, design, DJ, office, gamer…), shows what will change, and **always asks
+before it installs anything**.
+
+    brew install --cask 1985epma/brewcat/brewcat     # macOS app (Launchpad, Spotlight, Dock)
+    brew install 1985epma/brewcat/brewcat            # the `brewcat` command + window, macOS and Linux
+
+![brewcat window: profile filter, package list, details and install buttons](assets/screenshots/catalog.png)
+
+## Quick start
+
+1. Open brewcat (`brewcat`, or the app in Launchpad). On the first launch it asks what you do and shows a starter kit.
+2. Pick a **kit** or add packages to **My list**. You see what is new, what is already installed and what Homebrew
+   will pull in as dependencies, before anything runs.
+3. Confirm. If a package fails, the others still install, and **Retry failed** runs only the ones that failed.
+
+Prefer the terminal? `brewcat install "terraform + aws"` shows the same plan and asks the same question.
+Something wrong? `brewcat doctor` checks Python/Tk, Homebrew, Rosetta and the app bundle and prints how to fix it.
+
+## What it does
 
 - Categories, search, and filters by profile (Dev/Gamer) and platform
 - ✨ Suggestions based on what you already have installed
@@ -45,7 +65,7 @@ Recent Homebrew versions refuse to load formulae from third-party taps until you
 
     curl -fsSL https://raw.githubusercontent.com/1985epma/homebrew-brewcat/main/install.sh | bash
 
-Installs to `~/.local/share/brewcat`, adds a `brewcat` command and a desktop entry. It installs the latest released tag (not the moving `main` branch); pin a version with `BREWCAT_REF=v0.1.2.6`.
+Installs to `~/.local/share/brewcat`, adds a `brewcat` command and a desktop entry. It installs the latest released tag (not the moving `main` branch); pin a version with `BREWCAT_REF=v0.1.2.7.1`.
 Review the script before piping it to `bash`: https://github.com/1985epma/homebrew-brewcat/blob/main/install.sh
 
 **Build the .dmg yourself (macOS):** `./scripts/build-dmg.sh`
@@ -56,6 +76,7 @@ Review the script before piping it to `bash`: https://github.com/1985epma/homebr
     brewcat --version     version and OS
     brewcat doctor        checks Python/Tk, Homebrew, Rosetta, tap trust, app bundle… and prints how to fix them
     brewcat doctor --json machine-readable (exit code 1 if a check fails)
+    brewcat doctor --report  redacted Markdown to paste into a bug report (no user name, host or home path)
     brewcat search terraform -p sre          search the curated catalog without opening a window
     brewcat list -p security --not-installed list what you still miss in a profile (✓ = installed)
     brewcat kits -p sre                      list kits (brewcat kits "git pro" shows one kit)
@@ -69,11 +90,11 @@ Exit codes: 0 success, 1 nothing found / a check or operation failed, 2 invalid 
 
 ## Development
 
-    python -m pip install pytest ruff
-    ruff check . && pytest          # 51 tests; the GUI smoke test needs a display (xvfb on Linux)
+    python -m pip install pytest ruff mypy
+    ruff check . && mypy && pytest          # 155 tests; the GUI tests need a display (xvfb on Linux)
     python scripts/validate_catalog.py   # every catalog package must still exist in Homebrew
 
-CI runs the same on Linux and macOS; a weekly job re-validates the catalog against Homebrew's API.
+CI runs the same on Linux and macOS, on Python 3.9 and 3.13; a weekly job re-validates the catalog against Homebrew's API.
 
 ## Releasing (maintainers)
 
