@@ -1267,8 +1267,14 @@ ITEMS.append(Item(
     "Create verified bootable USB drives from Windows 11, Linux and ChromeOS Flex (GUI)",
     (LABS,), BOTH, ("usb", "windows", "linux", "installer", "117labs"),
     tap="1985epma/tap", homepage="https://github.com/1985epma/epma-windows-usb-creator"))
+ITEMS.append(Item(
+    "epma-system-data", "formula", C_LABS,
+    "EPMA System Data: measure and clean macOS System Data (caches, logs, Xcode, snapshots)",
+    (LABS,), (MAC,), ("macos", "cleanup", "disk", "cache", "117labs"),
+    tap="1985epma/systemdata", homepage="https://github.com/1985epma/epma-system-data"))
+SYSTEMDATA_KEY = "formula:epma-system-data"  # opened by the top-bar "systemdata" button (macOS)
 KITS.append(Kit("117-labs Toolkit", "Everything built by 117-labs (1985epma)", LABS,
-                ("formula:k8scli", "formula:epma-windows-usb-creator")))
+                ("formula:k8scli", "formula:epma-windows-usb-creator", "formula:epma-system-data")))
 
 # Merge duplicate keys (same package listed in several areas): keep the first, union profiles/tags.
 _merged: dict = {}

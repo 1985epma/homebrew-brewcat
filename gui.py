@@ -5,10 +5,12 @@ import os
 import platform
 import queue
 import re
+import shutil
 import subprocess
 import sys
 import threading
 import tkinter as tk
+import tkinter.font as tkfont
 import webbrowser
 from tkinter import filedialog, messagebox, ttk
 from typing import Dict, List, Optional, Set, Tuple
@@ -150,6 +152,8 @@ class App(tk.Tk):
         ttk.Button(top, text="Help", command=self.show_help).pack(side="right", padx=(6, 0))
         ttk.Button(top, text="Refresh status", command=self.refresh_installed).pack(side="right")
         ttk.Button(top, text="brew update", command=lambda: self.run_brew([["update"]])).pack(side="right", padx=6)
+        if SYSTEM == cd.MAC:  # epma-system-data is macOS only
+            self._systemdata_button(top).pack(side="right", padx=6)
 
         self.notebook = ttk.Notebook(self)
         self.notebook.pack(fill="both", expand=True)
@@ -632,6 +636,41 @@ class App(tk.Tk):
         self.clipboard_clear()
         self.clipboard_append(text)
         self._log("info", "Command copied to clipboard.\n")
+
+    def _systemdata_button(self, parent: tk.Misc) -> tk.Canvas:
+        """Firefly-green 'systemdata' button with an eraser icon (drawn, so it keeps its color on macOS)."""
+        firefly, glow, ink = "#9EF01A", "#C3FF5C", "#173B06"
+        label_font = tkfont.Font(family="TkDefaultFont", size=13, weight="bold")
+        w, h, r = 40 + label_font.measure("systemdata") + 12, 30, 8
+        c = tk.Canvas(parent, width=w, height=h, highlightthickness=0, bd=0,
+                      cursor=("pointinghand" if sys.platform == "darwin" else "hand2"))
+        pts = [r, 0, w - r, 0, w, 0, w, r, w, h - r, w, h, w - r, h, r, h, 0, h, 0, h - r, 0, r, 0, 0]
+        bg = c.create_polygon(pts, smooth=True, fill=firefly, outline="")
+        # Eraser tilted 45°: dark body, white tip.
+        c.create_polygon(13, 16, 21, 7, 31, 7, 23, 16, fill=ink, outline=ink)
+        c.create_polygon(9, 23, 13, 16, 23, 16, 19, 23, fill="#FFFFFF", outline=ink)
+        c.create_line(8, 25, 22, 25, fill=ink, width=2)
+        c.create_text(40, h // 2, text="systemdata", anchor="w", fill=ink,
+                      font=label_font)
+        c.bind("<Enter>", lambda _e: c.itemconfig(bg, fill=glow))
+        c.bind("<Leave>", lambda _e: c.itemconfig(bg, fill=firefly))
+        c.bind("<Button-1>", lambda _e: self.open_systemdata())
+        return c
+
+    def open_systemdata(self) -> None:
+        """Open EPMA System Data, offering to install it from its tap first."""
+        item = cd.BY_KEY[cd.SYSTEMDATA_KEY]
+        if self.is_installed(item):
+            exe = shutil.which(item.name) or os.path.join(os.path.dirname(self.brew or ""), item.name)
+            try:
+                subprocess.Popen([exe], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL, start_new_session=True)
+                self._log("info", "Opening EPMA System Data…\n")
+            except OSError as exc:
+                self._log("err", f"Could not open {item.name}: {exc}\n")
+        elif messagebox.askyesno("systemdata", "EPMA System Data is not installed. Run the following?\n\n"
+                                 f"brew {' '.join(item.install_cmd)}"):
+            self.run_brew([item.install_cmd])
 
     @staticmethod
     def page_url(item: cd.Item) -> str:
