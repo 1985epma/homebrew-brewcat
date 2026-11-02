@@ -76,8 +76,10 @@ def test_install_commands_batch_formulae_and_casks():
 
 def test_117_labs_products():
     labs = cd.find_items(profile=cd.LABS)
-    assert sorted(i.name for i in labs) == ["epma-windows-usb-creator", "k8scli"]
+    assert sorted(i.name for i in labs) == ["epma-system-data", "epma-windows-usb-creator", "k8scli"]
     for i in labs:
         assert i.tap and i.homepage.startswith("https://github.com/1985epma/")
         assert i.install_cmd[-1] == f"{i.tap}/{i.name}"
-    assert cd.find_kit("117-labs").keys == ("formula:k8scli", "formula:epma-windows-usb-creator")
+    assert cd.find_kit("117-labs").keys == ("formula:k8scli", "formula:epma-windows-usb-creator",
+                                         "formula:epma-system-data")
+    assert cd.BY_KEY[cd.SYSTEMDATA_KEY].platforms == (cd.MAC,)
