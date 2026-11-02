@@ -76,8 +76,16 @@ def test_install_commands_batch_formulae_and_casks():
 
 def test_117_labs_products():
     labs = cd.find_items(profile=cd.LABS)
-    assert sorted(i.name for i in labs) == ["epma-windows-usb-creator", "k8scli"]
+    assert sorted(i.name for i in labs) == ["117terminal", "epma-system-data", "epma-windows-usb-creator",
+                                            "k8scli", "terminal117"]
     for i in labs:
         assert i.tap and i.homepage.startswith("https://github.com/1985epma/")
         assert i.install_cmd[-1] == f"{i.tap}/{i.name}"
-    assert cd.find_kit("117-labs").keys == ("formula:k8scli", "formula:epma-windows-usb-creator")
+    assert cd.find_kit("117-labs").keys == ("formula:k8scli", "formula:epma-windows-usb-creator",
+                                            "cask:117terminal", "formula:terminal117",
+                                            "formula:epma-system-data")
+    # 117Terminal is a cask on macOS and a formula on Linux; System Data is macOS only.
+    assert {i.name for i in cd.find_items(profile=cd.LABS, platform=cd.MAC)} == {
+        "k8scli", "epma-windows-usb-creator", "117terminal", "epma-system-data"}
+    assert {i.name for i in cd.find_items(profile=cd.LABS, platform=cd.LINUX)} == {
+        "k8scli", "epma-windows-usb-creator", "terminal117"}

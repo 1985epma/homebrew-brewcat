@@ -1267,8 +1267,25 @@ ITEMS.append(Item(
     "Create verified bootable USB drives from Windows 11, Linux and ChromeOS Flex (GUI)",
     (LABS,), BOTH, ("usb", "windows", "linux", "installer", "117labs"),
     tap="1985epma/tap", homepage="https://github.com/1985epma/epma-windows-usb-creator"))
-KITS.append(Kit("117-labs Toolkit", "Everything built by 117-labs (1985epma)", LABS,
-                ("formula:k8scli", "formula:epma-windows-usb-creator")))
+ITEMS.append(Item(
+    "117terminal", "cask", C_LABS,
+    "117Terminal: block-based terminal with Agent Mode, zsh extensions and MCP",
+    (LABS,), (MAC,), ("terminal", "agent", "mcp", "zsh", "117labs"),
+    tap="1985epma/117terminal", homepage="https://github.com/1985epma/117-terminal"))
+# Homebrew class names cannot start with a digit, so the Linux formula is `terminal117`.
+ITEMS.append(Item(
+    "terminal117", "formula", C_LABS,
+    "117Terminal: block-based terminal with Agent Mode, zsh extensions and MCP (Linux x86_64)",
+    (LABS,), (LINUX,), ("terminal", "agent", "mcp", "zsh", "117terminal", "117labs"),
+    tap="1985epma/117terminal", homepage="https://github.com/1985epma/117-terminal"))
+ITEMS.append(Item(
+    "epma-system-data", "formula", C_LABS,
+    "EPMA System Data: native app to measure and clean macOS System Data (caches, logs, Xcode)",
+    (LABS,), (MAC,), ("cleanup", "disk", "storage", "xcode", "117labs"),
+    tap="1985epma/systemdata", homepage="https://github.com/1985epma/epma-system-data"))
+LABS_KEYS = ("formula:k8scli", "formula:epma-windows-usb-creator", "cask:117terminal",
+             "formula:terminal117", "formula:epma-system-data")
+KITS.append(Kit("117-labs Toolkit", "Everything built by 117-labs (1985epma)", LABS, LABS_KEYS))
 
 # Merge duplicate keys (same package listed in several areas): keep the first, union profiles/tags.
 _merged: dict = {}
@@ -1329,7 +1346,7 @@ ESSENTIALS = {
     OFFICE: ["cask:libreoffice", "cask:obsidian", "cask:slack", "cask:zoom", "cask:rectangle"],
     VENDOR: ["cask:visual-studio-code", "cask:jetbrains-toolbox", "formula:podman", "formula:swiftlint",
              "cask:oracle-jdk", "cask:libreoffice", "cask:firefox", "formula:dotnet"],
-    LABS: ["formula:k8scli", "formula:epma-windows-usb-creator"],
+    LABS: list(LABS_KEYS),
     GAMER: ["cask:steam", "cask:discord", "cask:obs", "cask:heroic", "cask:retroarch",
             "formula:btop", "cask:stats", "cask:vlc"],
 }

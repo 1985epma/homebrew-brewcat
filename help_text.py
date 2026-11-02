@@ -27,8 +27,8 @@ PACKAGES TAB
   Profile     All, Dev, SRE/Cloud, QA, Data Scientist, Data Engineer, Support & Network,
               Security, Design (web/video/graphics), DJ/Music, Office, Vendors (Microsoft,
               Oracle, Apple, Open Source, Red Hat, JetBrains), 117-labs (products by 1985epma:
-              k8scli, epma-windows-usb-creator) or Gamer. It filters the
-              catalog, categories, kits and suggestions.
+              k8scli, epma-windows-usb-creator, 117terminal, epma-system-data) or
+              Gamer. It filters the catalog, categories, kits and suggestions.
   Platform    mac or linux. Casks (GUI apps) exist only on macOS.
   Search      Type 2+ letters. Matches the curated catalog (name, description, tags) and
               also any package in Homebrew (via `brew search`), listed under
