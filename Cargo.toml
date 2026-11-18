@@ -1,6 +1,6 @@
 [package]
 name = "brewcat"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 rust-version = "1.95"
 description = "Visual catalog of Homebrew packages, skills and MCP servers for devs and gamers"

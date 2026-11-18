@@ -1,5 +1,5 @@
 cask "brewcat" do
-  version "0.2.0"
+  version "0.2.1"
   sha256 "895b35c9fd21cda0bb75e9a5ebba1de30754d2d1f76b174a0e8c8966bc96468a"
 
   url "https://github.com/1985epma/homebrew-brewcat/releases/download/v#{version}/brewcat-#{version}.dmg"
