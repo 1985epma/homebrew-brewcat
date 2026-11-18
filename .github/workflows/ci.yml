@@ -8,44 +8,41 @@ on:
 permissions:
   contents: read
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   test:
-    name: Tests (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    name: Tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python-version: ["3.13"]  # newest
-        include:
-          # Oldest supported Python (requires-python 3.9). setup-python has no 3.9 build for ubuntu-latest
-          # (Ubuntu 26.04), so that leg is pinned to 24.04.
-          - {os: ubuntu-24.04, python-version: "3.9"}
-          - {os: macos-latest, python-version: "3.9"}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Install system libraries (Linux)
+        if: runner.os == 'Linux'
+        run: >
+          sudo apt-get update && sudo apt-get install -y pkg-config shellcheck
+          libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxi-dev libxrandr-dev
+          libgl1-mesa-dev libegl1-mesa-dev libvulkan-dev
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install tools
-        run: python -m pip install --upgrade pip pytest ruff mypy
-      - name: Install Tk and a virtual display (Linux)
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y tk xvfb shellcheck
-      - name: Lint (real bugs only)
-        run: ruff check .
-      - name: Type check
-        # mypy needs Python >= 3.10 to run; it still checks the code as 3.10 (see [tool.mypy])
-        if: matrix.python-version != '3.9'
-        run: mypy
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Format
+        run: cargo fmt --check
+      - name: Lint (window and command line only)
+        run: |
+          cargo clippy --all-targets -- -D warnings
+          cargo clippy --all-targets --no-default-features -- -D warnings
+      - name: Tests (window and command line only)
+        run: |
+          cargo test
+          cargo test --no-default-features
       - name: Catalog structure
-        run: python scripts/validate_catalog.py --offline
-      - name: Tests (with a virtual display)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a python -m pytest -rs
-      - name: Tests (no GUI smoke test on the macOS runner)
-        if: runner.os == 'macOS'
-        run: python -m pytest --ignore=tests/test_gui_smoke.py
+        run: cargo run --example validate_catalog --no-default-features -- --offline
       - name: Shell scripts (syntax)
         run: bash -n install.sh scripts/build-dmg.sh scripts/release.sh
       - name: Shell scripts (shellcheck)

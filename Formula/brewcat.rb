@@ -5,26 +5,26 @@ class Brewcat < Formula
   sha256 "14a32fd508a447e36923b4490bdbc793c1b80e64f533c64395dda4ef9607ccab"
   license "MIT"
 
-  depends_on "python-tk"
+  depends_on "rust" => :build
 
   def install
-    libexec.install Dir["*.py"], "assets"
-    (bin/"brewcat").write <<~SH
-      #!/bin/bash
-      exec "#{HOMEBREW_PREFIX}/bin/python3" "#{libexec}/app.py" "$@"
-    SH
+    system "cargo", "install", *std_cargo_args
   end
 
   def caveats
     <<~EOS
       Run the app with:
         brewcat
+
+      On Linux the window needs a graphical session and OpenGL/EGL or Vulkan drivers.
+      The command line (brewcat --help) works without them.
     EOS
   end
 
   test do
-    ENV.prepend_path "PYTHONPATH", libexec
-    system "#{HOMEBREW_PREFIX}/bin/python3", "-c", "import catalog_data; assert len(catalog_data.ITEMS) > 100"
     assert_match version.to_s, shell_output("#{bin}/brewcat --version")
+    # These read the built-in catalog only; none of them runs brew.
+    assert_match "Git Pro", shell_output("#{bin}/brewcat kits --json")
+    assert_match "117-labs", shell_output("#{bin}/brewcat profiles")
   end
 end

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Publish a new brewcat version end to end: bump, commit, tag, GitHub release (.dmg), formula and cask sha256.
 #
-#   scripts/release.sh 0.1.3                 # dry run: checks everything, prints the plan, changes nothing
-#   scripts/release.sh 0.1.3 --yes           # really publish
-#   scripts/release.sh 0.1.3 --yes --notes "What changed" [--local-upgrade]
+#   scripts/release.sh 0.2.1                 # dry run: checks everything, prints the plan, changes nothing
+#   scripts/release.sh 0.2.1 --yes           # really publish
+#   scripts/release.sh 0.2.1 --yes --notes "What changed" [--local-upgrade]
 #
-# Rules it enforces: the version must be newer, the tag must not exist yet (tags are never moved),
-# the working tree must be clean and in sync with origin/main, and every sha256 is verified against
-# what GitHub really serves (curl -f, so a 404 page can never be hashed by mistake).
+# Rules it enforces: the version is X.Y.Z (Cargo needs semver) and newer than the latest v* tag, the tag must not
+# exist yet (tags are never moved), the working tree must be clean and in sync with origin/main, and every sha256
+# is verified against what GitHub really serves (curl -f, so a 404 page can never be hashed by mistake).
 set -Eeuo pipefail
 cd "$(dirname "$0")/.."
 
@@ -28,16 +28,15 @@ while (( $# )); do
   shift
 done
 [[ -n $VERSION ]] || usage
-[[ $VERSION =~ ^[0-9]+(\.[0-9]+){2,4}$ ]] || die "version must look like 0.1.3, 0.1.2.7 or 0.1.2.7.1"
+[[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "version must look like 0.2.1 (Cargo needs X.Y.Z)"
 TAG="v$VERSION"
 
-CURRENT=$(sed -n 's/^VERSION = "\(.*\)"$/\1/p' help_text.py)
-[[ -n $CURRENT ]] || die "cannot read VERSION from help_text.py"
-[[ $CURRENT != "$VERSION" && $(printf '%s\n%s\n' "$CURRENT" "$VERSION" | sort -V | tail -1) == "$VERSION" ]] \
-  || die "version $VERSION is not newer than the current $CURRENT"
+CURRENT=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)
+[[ -n $CURRENT ]] || die "cannot read the version from Cargo.toml"
 
 # ── preconditions (always checked, also in dry run) ──
 command -v gh >/dev/null || die "gh (GitHub CLI) is required"
+command -v cargo >/dev/null || die "cargo (Rust) is required"
 gh auth status >/dev/null 2>&1 || die "gh is not logged in (gh auth login)"
 [[ $(git rev-parse --abbrev-ref HEAD) == main ]] || die "run this from the main branch"
 [[ -z $(git status --porcelain) ]] || die "uncommitted changes: commit them first (a release commit only bumps the version)"
@@ -46,11 +45,18 @@ git fetch -q origin main --tags
 if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null || git ls-remote --exit-code --tags origin "$TAG" >/dev/null 2>&1; then
   die "tag $TAG already exists. Tags are never moved: pick a new version"
 fi
-python3 -m compileall -q ./*.py >/dev/null || die "Python files do not compile"
+# "Newer" means newer than the latest released tag. The version in Cargo.toml may already be the one about to be
+# released (the first Rust release was prepared as 0.2.0 while the latest tag was still the Python-era v0.1.2.7.1).
+LAST=$(git tag -l 'v*' | sed 's/^v//' | sort -V | tail -1)
+if [[ -n $LAST ]]; then
+  [[ $LAST != "$VERSION" && $(printf '%s\n%s\n' "$LAST" "$VERSION" | sort -V | tail -1) == "$VERSION" ]] \
+    || die "version $VERSION is not newer than the latest release $LAST"
+fi
+cargo check --locked --quiet || die "the project does not compile (cargo check --locked)"
 
 cat <<PLAN
-Release plan: $CURRENT -> $VERSION  (tag $TAG)
-  1. set VERSION in help_text.py, the formula url and the cask version
+Release plan: ${LAST:-none} -> $VERSION  (tag $TAG; Cargo.toml says $CURRENT)
+  1. set the version in Cargo.toml and Cargo.lock, the formula url and the cask version
   2. verify 'brewcat --version', commit "Release $VERSION", push main, create and push tag $TAG
   3. sha256 of the GitHub tarball -> Formula/brewcat.rb
   4. build dist/brewcat-$VERSION.dmg and create the GitHub release with it
@@ -72,13 +78,15 @@ fetch_sha() { # sha256 of a URL, retrying while GitHub finishes publishing it; f
 }
 
 step "1/6 bump version"
-perl -pi -e "s/^VERSION = \".*\"/VERSION = \"$VERSION\"/" help_text.py
+perl -0pi -e "s/^version = \".*\"\$/version = \"$VERSION\"/m" Cargo.toml  # first match only: the [package] version
+cargo update --workspace --offline --quiet  # Cargo.lock: only the brewcat entry changes
 perl -pi -e "s{/archive/refs/tags/v[0-9.]+\.tar\.gz}{/archive/refs/tags/$TAG.tar.gz}" Formula/brewcat.rb
 perl -pi -e "s/^  version \".*\"/  version \"$VERSION\"/" Casks/brewcat.rb
 
 step "2/6 verify, commit, push, tag"
-[[ $(python3 app.py --version | head -1) == "brewcat $VERSION" ]] || die "app reports a different version"
-git add help_text.py Formula/brewcat.rb Casks/brewcat.rb
+OUT=$(cargo run -q --release --locked -- --version)  # the same build users get: with the window
+[[ ${OUT%%$'\n'*} == "brewcat $VERSION" ]] || die "app reports a different version: ${OUT%%$'\n'*}"
+git add Cargo.toml Cargo.lock Formula/brewcat.rb Casks/brewcat.rb
 git commit -q -m "Release $VERSION"
 git push -q origin main
 git tag "$TAG"

@@ -1,12 +1,34 @@
 #!/bin/bash
-# Build dist/brewcat-<version>.dmg containing a launcher-style brewcat.app (macOS only).
+# Build dist/brewcat-<version>.dmg containing the native brewcat.app (macOS only).
+#
+#   scripts/build-dmg.sh [VERSION]       # builds for this Mac's architecture
+#   UNIVERSAL=1 scripts/build-dmg.sh     # arm64 + x86_64 in one binary (needs both Rust targets installed)
+#
+# VERSION defaults to the one in Cargo.toml.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-VERSION="${1:-$(sed -n 's/^VERSION = "\(.*\)"$/\1/p' help_text.py)}"
+VERSION="${1:-$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)}"
+[[ -n $VERSION ]] || { echo "build-dmg: cannot read the version from Cargo.toml" >&2; exit 1; }
 APP="dist/brewcat.app"
+OUT="${CARGO_TARGET_DIR:-target}"
 rm -rf dist && mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-cp ./*.py "$APP/Contents/Resources/"
+if [[ ${UNIVERSAL:-0} == 1 ]]; then
+  TARGETS=(aarch64-apple-darwin x86_64-apple-darwin)
+  RUSTLIB="$(rustc --print sysroot)/lib/rustlib"
+  for t in "${TARGETS[@]}"; do
+    [[ -d $RUSTLIB/$t ]] || { echo "build-dmg: Rust target $t is not installed (rustup target add $t)" >&2; exit 1; }
+  done
+  for t in "${TARGETS[@]}"; do
+    cargo build --release --locked --target "$t"
+  done
+  lipo -create -output "$APP/Contents/MacOS/brewcat" \
+    "$OUT/${TARGETS[0]}/release/brewcat" "$OUT/${TARGETS[1]}/release/brewcat"
+else
+  cargo build --release --locked
+  cp "$OUT/release/brewcat" "$APP/Contents/MacOS/brewcat"
+fi
+chmod 755 "$APP/Contents/MacOS/brewcat"
 cp assets/brewcat.icns "$APP/Contents/Resources/brewcat.icns"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
@@ -26,21 +48,6 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </dict></plist>
 PLIST
 
-cat > "$APP/Contents/MacOS/brewcat" <<'LAUNCH'
-#!/bin/bash
-# Finder-launched apps have a minimal PATH, so look for Homebrew's Python explicitly.
-DIR="$(cd "$(dirname "$0")/../Resources" && pwd)"
-for PY in /opt/homebrew/bin/python3 /usr/local/bin/python3; do
-  if [ -x "$PY" ] && "$PY" -c "import tkinter" 2>/dev/null; then
-    export TK_SILENCE_DEPRECATION=1
-    export BREWCAT_HIDDEN_APP=1  # already in /Applications: keep the "brewcat" helper bundle hidden
-    exec "$PY" "$DIR/app.py"
-  fi
-done
-osascript -e 'display dialog "brewcat needs Homebrew and python-tk.\n\nInstall them with:\n  brew install python-tk\n\nThen open the app again." buttons {"OK"} default button "OK" with icon caution with title "brewcat"'
-LAUNCH
-chmod +x "$APP/Contents/MacOS/brewcat"
-
 # Ad-hoc sign (no Apple Developer ID): satisfies Apple Silicon's signature requirement. Gatekeeper will
 # still warn for downloaded copies because the app is not notarized, so the DMG ships instructions.
 codesign --force --deep --sign - "$APP" >/dev/null 2>&1 || echo "warning: ad-hoc codesign failed"
@@ -59,9 +66,9 @@ To open it:
   (Or: System Settings > Privacy & Security > scroll down > "Open Anyway".)
 
 No warning at all if you install with Homebrew instead:
-         brew tap 1985epma/brewcat && brew install brewcat && brewcat
+         brew tap 1985epma/brewcat && brew install --cask brewcat
 
-brewcat needs python-tk:  brew install python-tk
+brewcat needs Homebrew to install packages: https://brew.sh
 On Apple Silicon, brewcat also offers to install Rosetta 2 for Intel-only apps.
 TXT
 hdiutil create -volname "brewcat" -srcfolder "$STAGE" -ov -format UDZO "dist/brewcat-${VERSION}.dmg" >/dev/null

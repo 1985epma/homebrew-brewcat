@@ -14,9 +14,9 @@ report is read; a fix is released as a new version (tags are never moved or rewr
 
 ## What is in scope
 
-- the app and the command line (`app.py`, `cli.py`, `gui.py` and the other modules in this repository);
+- the app and the command line (the modules in `src/`);
 - `install.sh`, `scripts/` and the release artifacts (the `.dmg`, the formula and the cask);
-- the logic that installs skills and MCP servers (repository parsing, symlink and script checks, config edits);
+- the logic that installs skills and MCP servers (`src/extras_core.rs`: repository parsing, symlink and script checks, config edits);
 - anything that could make brewcat run a command you did not confirm, or write outside the folders it is meant to use.
 
 ## What is out of scope

@@ -1,0 +1,38 @@
+[package]
+name = "brewcat"
+version = "0.2.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Visual catalog of Homebrew packages, skills and MCP servers for devs and gamers"
+license = "MIT"
+repository = "https://github.com/1985epma/homebrew-brewcat"
+readme = "README.md"
+# The curated catalog and the logo are compiled in; nothing else is needed at run time.
+include = ["/src", "/data", "/assets/brewcat.icns", "/examples", "/tests", "/LICENSE", "/README.md"]
+
+[features]
+default = ["gui"]
+# The window. Without it brewcat is a command line only (headless boxes, CI, fast core tests).
+gui = ["dep:eframe", "dep:egui_extras", "dep:rfd"]
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order", "arbitrary_precision"] }
+regex = "1"
+shlex = "1"
+libc = "0.2"
+ctrlc = "3"
+terminal_size = "0.4"
+eframe = { version = "0.37", optional = true }
+egui_extras = { version = "0.37", optional = true }
+rfd = { version = "0.18", optional = true }
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true

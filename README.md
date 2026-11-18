@@ -3,7 +3,7 @@
 **Set up a Mac or Linux machine in minutes: pick what you do, see a starter kit, confirm, install.**
 brewcat is a window and a command line on top of [Homebrew](https://brew.sh). It suggests packages for your
 profile (dev, SRE, QA, security, data, design, DJ, office, gamer…), shows what will change, and **always asks
-before it installs anything**.
+before it installs anything**. It is a single native binary: no Python or Tk needed.
 
     brew install --cask 1985epma/brewcat/brewcat     # macOS app (Launchpad, Spotlight, Dock)
     brew install 1985epma/brewcat/brewcat            # the `brewcat` command + window, macOS and Linux
@@ -18,7 +18,8 @@ before it installs anything**.
 3. Confirm. If a package fails, the others still install, and **Retry failed** runs only the ones that failed.
 
 Prefer the terminal? `brewcat install "terraform + aws"` shows the same plan and asks the same question.
-Something wrong? `brewcat doctor` checks Python/Tk, Homebrew, Rosetta and the app bundle and prints how to fix it.
+Something wrong? `brewcat doctor` checks Homebrew, Rosetta, tap trust, the display and graphics libraries and the app
+bundle, and prints how to fix it.
 
 ## What it does
 
@@ -46,6 +47,8 @@ Recent Homebrew versions refuse to load formulae from third-party taps until you
 `Refusing to load formula … from untrusted tap`, run `brew trust 1985epma/brewcat` once (then
 `brew update && brew upgrade brewcat`).
 
+The formula builds brewcat from source with Rust (Homebrew installs it for you), so the first install takes a few minutes.
+
 ## Appear in Launchpad / Applications (macOS)
 
 - `brew install --cask 1985epma/brewcat/brewcat` installs **brewcat.app** into /Applications (Launchpad, Spotlight, Dock).
@@ -59,22 +62,28 @@ Recent Homebrew versions refuse to load formulae from third-party taps until you
 
     xattr -dr com.apple.quarantine /Applications/brewcat.app
 
-(or System Settings → Privacy & Security → *Open Anyway*). Installing with `brew` avoids this warning entirely. It needs `brew install python-tk`.
+(or System Settings → Privacy & Security → *Open Anyway*). Installing with `brew` avoids this warning entirely.
 
 **Linux (script):**
 
     curl -fsSL https://raw.githubusercontent.com/1985epma/homebrew-brewcat/main/install.sh | bash
 
-Installs to `~/.local/share/brewcat`, adds a `brewcat` command and a desktop entry. It installs the latest released tag (not the moving `main` branch); pin a version with `BREWCAT_REF=v0.1.2.7.1`.
+Needs `git` and a Rust toolchain (`brew install rust`, or [rustup](https://rustup.rs)). It builds the latest released tag
+(not the moving `main` branch) in `~/.local/share/brewcat`, which takes a few minutes, then installs `brewcat` to
+`~/.local/bin` and adds a desktop entry. Pin a version with `BREWCAT_REF=v0.2.0` (the first release written in Rust;
+older tags cannot be built).
 Review the script before piping it to `bash`: https://github.com/1985epma/homebrew-brewcat/blob/main/install.sh
 
-**Build the .dmg yourself (macOS):** `./scripts/build-dmg.sh`
+**Build the .dmg yourself (macOS):** `./scripts/build-dmg.sh` (needs Rust; `UNIVERSAL=1` builds arm64 + x86_64 in one app).
+
+**Linux, the window:** it needs a graphical session and OpenGL/EGL or Vulkan drivers (Debian/Ubuntu:
+`sudo apt install libegl1 libgl1`). The command line works without them, also on a headless box.
 
 ## Command line
 
     brewcat --help        full help
     brewcat --version     version and OS
-    brewcat doctor        checks Python/Tk, Homebrew, Rosetta, tap trust, app bundle… and prints how to fix them
+    brewcat doctor        checks Homebrew, Rosetta, tap trust, display and graphics, app bundle… and prints how to fix them
     brewcat doctor --json machine-readable (exit code 1 if a check fails)
     brewcat doctor --report  redacted Markdown to paste into a bug report (no user name, host or home path)
     brewcat search terraform -p sre          search the curated catalog without opening a window
@@ -90,26 +99,34 @@ Exit codes: 0 success, 1 nothing found / a check or operation failed, 2 invalid 
 
 ## Development
 
-    python -m pip install pytest ruff mypy
-    ruff check . && mypy && pytest          # 155 tests; the GUI tests need a display (xvfb on Linux)
-    python scripts/validate_catalog.py   # every catalog package must still exist in Homebrew
+    cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test
+    cargo test --no-default-features          # command line only: no window, no graphics libraries needed
+    cargo run --example validate_catalog      # every catalog package must still exist in Homebrew (needs curl)
 
-CI runs the same on Linux and macOS, on Python 3.9 and 3.13; a weekly job re-validates the catalog against Homebrew's API.
+The window is the `gui` feature, on by default. CI runs the same on Linux and macOS; a weekly job re-validates the
+catalog against Homebrew's API.
+
+The catalog is `data/catalog.json`: one JSON object per package on its own line, then the kits, the categories of each
+profile and the "essentials" suggested for it. To add a package, add a line to `items`:
+
+    {"name": "ripgrep", "kind": "formula", "category": "Terminal & Shell", "desc": "…", "profiles": ["dev"], "platforms": ["mac", "linux"], "tags": ["cli", "search"]}
+
+`kind` is `formula` or `cask` (casks are macOS only); `tap`, `groups` and `homepage` are optional; a package that is also
+useful in another area lists that category in `groups`. `cargo test` rejects duplicate keys, kits or essentials that point
+at missing packages and categories without packages.
 
 ## Releasing (maintainers)
 
-    scripts/release.sh 0.1.3                 # dry run: checks everything and prints the plan
-    scripts/release.sh 0.1.3 --yes --notes "What changed"
+    scripts/release.sh 0.2.1                 # dry run: checks everything and prints the plan
+    scripts/release.sh 0.2.1 --yes --notes "What changed"
 
-The version lives in `help_text.py` only; the script bumps it, tags, builds the `.dmg`, creates the GitHub
-release and sets the formula and cask sha256 from what GitHub actually serves. Tags are never moved.
+The version lives in `Cargo.toml` only (`X.Y.Z`); the script bumps it and `Cargo.lock`, tags, builds the `.dmg`, creates
+the GitHub release and sets the formula and cask sha256 from what GitHub actually serves. Tags are never moved.
 
 ## Run from source
 
-    python3 app.py
-
-On macOS, the system Python (Tk 8.5) shows a blank window, so the app automatically restarts with Homebrew's Python when available. Install it with `brew install python-tk`.
-On Linux: `brew install python-tk` or your distro's `python3-tk` package.
+    cargo run --release                      # the window
+    cargo run --release -- search jq         # the command line
 
 ## Where things are installed
 

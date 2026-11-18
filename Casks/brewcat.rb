@@ -7,8 +7,6 @@ cask "brewcat" do
   desc "Visual catalog of Homebrew packages, skills and MCP servers"
   homepage "https://github.com/1985epma/homebrew-brewcat"
 
-  depends_on formula: "python-tk"
-
   app "brewcat.app"
 
   # The app is not notarized by Apple; remove the quarantine flag so it opens without a Gatekeeper warning.
