@@ -46,7 +46,7 @@ if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null || git ls-remote --exit
   die "tag $TAG already exists. Tags are never moved: pick a new version"
 fi
 # "Newer" means newer than the latest released tag. The version in Cargo.toml may already be the one about to be
-# released (the first Rust release was prepared as 0.2.0 while the latest tag was still the Python-era v0.1.2.7.1).
+# released (the first Rust release was prepared as 0.2.0 while the latest tag was still v0.1.2.7.1).
 LAST=$(git tag -l 'v*' | sed 's/^v//' | sort -V | tail -1)
 if [[ -n $LAST ]]; then
   [[ $LAST != "$VERSION" && $(printf '%s\n%s\n' "$LAST" "$VERSION" | sort -V | tail -1) == "$VERSION" ]] \
