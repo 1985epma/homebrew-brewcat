@@ -243,6 +243,7 @@ fn a_kit_that_is_installed_already_only_writes_to_the_log() {
 fn uninstall_asks_first_and_names_the_cask_flag() {
     let dir = tempfile::tempdir().unwrap();
     let mut app = app_in(dir.path(), Some("/fake/brew".into()));
+    app.model.platform = "mac".to_string(); // casks only exist on macOS; the default platform is the machine's
     app.model.installed.cask.insert("obs".to_string());
     app.model.search = "obs".to_string();
     app.model.refresh();
@@ -436,6 +437,7 @@ fn pages_open_in_the_browser() {
 fn a_brewfile_is_written_for_the_list() {
     let dir = tempfile::tempdir().unwrap();
     let mut app = app_in(dir.path(), None);
+    app.model.platform = "mac".to_string(); // casks only exist on macOS; the default platform is the machine's
     app.model.cart.extend(["formula:jq".to_string(), "cask:obs".to_string()]);
     let items = app.model.export_items();
     let path = dir.path().join("Brewfile");
@@ -789,8 +791,107 @@ fn the_logo_is_a_texture_and_the_window_title_is_brewcat() {
 }
 
 #[test]
-fn the_profile_list_has_the_labels_of_the_python_app() {
+fn the_profile_list_has_the_expected_labels() {
     assert_eq!(PROFILES[0].0, "All");
     assert_eq!(PROFILES[1].0, "117-labs (by 1985epma)");
     assert_eq!(PROFILES.len(), 14);
+}
+
+// ───────────────────────── clicking ─────────────────────────
+// Real pointer events through the headless egui context: move, press, release, one frame each, like a user's click.
+struct Pointer {
+    time: f64,
+}
+
+impl Pointer {
+    fn new() -> Pointer {
+        Pointer { time: 0.0 }
+    }
+
+    /// One frame with `events`. Returns the repaint delay egui reports for it.
+    fn frame(&mut self, app: &mut BrewcatApp, events: Vec<egui::Event>) -> std::time::Duration {
+        self.time += 0.05;
+        let raw = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1180.0, 720.0))),
+            time: Some(self.time),
+            events,
+            ..Default::default()
+        };
+        let ctx = app.ctx.clone();
+        let out = ctx.run_ui(raw, |ui| app.draw(ui));
+        let delay = out.viewport_output.get(&egui::ViewportId::ROOT).map(|v| v.repaint_delay).unwrap_or(std::time::Duration::MAX);
+        out.drop_without_applying_deltas();
+        delay
+    }
+
+    /// Press and release the primary button at `(x, y)`. Returns the repaint delay after the release.
+    fn click(&mut self, app: &mut BrewcatApp, x: f32, y: f32) -> std::time::Duration {
+        let pos = egui::pos2(x, y);
+        let button =
+            |pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
+        self.frame(app, vec![egui::Event::PointerMoved(pos)]);
+        self.frame(app, vec![button(true)]);
+        self.frame(app, vec![button(false)])
+    }
+}
+
+fn settled_app(dir: &std::path::Path) -> (BrewcatApp, Pointer) {
+    let mut app = app_in(dir, Some("/fake/brew".into()));
+    let mut pointer = Pointer::new();
+    for _ in 0..4 {
+        pointer.frame(&mut app, vec![]); // panels and the table need a couple of frames to find their size
+    }
+    (app, pointer)
+}
+
+#[test]
+fn clicking_anywhere_on_a_row_selects_it_also_on_the_text() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, mut pointer) = settled_app(dir.path());
+    let (mut hits, mut total) = (0, 0);
+    let mut missed: Vec<(f32, f32)> = Vec::new();
+    for y in (165..545).step_by(7) {
+        for x in (225..800).step_by(23) {
+            app.model.selected = None;
+            pointer.click(&mut app, x as f32, y as f32);
+            total += 1;
+            if app.model.selected.is_some() {
+                hits += 1;
+            } else {
+                missed.push((x as f32, y as f32));
+            }
+        }
+    }
+    // a few clicks land on a column's resize handle; anything beyond that is text swallowing the click
+    assert!(
+        hits * 100 >= total * 95,
+        "only {hits} of {total} clicks on rows selected one; missed e.g. {:?}",
+        &missed[..missed.len().min(8)]
+    );
+}
+
+#[test]
+fn the_screen_is_repainted_after_a_click_so_the_new_selection_shows_at_once() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, mut pointer) = settled_app(dir.path());
+    // the row is drawn after the details panel: without another frame the panel would show the old selection
+    // until the mouse moves
+    let delay = pointer.click(&mut app, 300.0, 200.0);
+    assert!(app.model.selected.is_some(), "the click missed the table");
+    assert_eq!(delay, std::time::Duration::ZERO, "no repaint was requested after the click");
+}
+
+#[test]
+fn a_double_click_on_a_row_adds_it_to_my_list() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut app, mut pointer) = settled_app(dir.path());
+    pointer.click(&mut app, 300.0, 200.0);
+    let first = app.model.selected.clone().expect("the first click selects the row");
+    pointer.click(&mut app, 300.0, 200.0);
+    assert_eq!(app.model.cart.len(), 1, "the double click did not add the row");
+    assert!(
+        app.model.cart.iter().any(|k| first.ends_with(k.as_str()) || k.ends_with(first.trim_start_matches("item:"))),
+        "{first} / {:?}",
+        app.model.cart
+    );
 }

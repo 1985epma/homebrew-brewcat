@@ -19,7 +19,7 @@ pub enum Tag {
     Cmd,
 }
 
-/// Cuts a byte stream into lines the way Python's universal newlines do: `\n`, `\r\n` and a lone `\r`
+/// Cuts a byte stream into lines the way text-mode readers do: `\n`, `\r\n` and a lone `\r`
 /// (brew's progress bars) all end a line. Every returned line ends with `\n`.
 #[derive(Default)]
 pub struct LineSplitter {
@@ -171,7 +171,7 @@ impl BrewRunner {
         unsafe {
             cmd.pre_exec(|| if libc::setsid() == -1 { Err(io::Error::last_os_error()) } else { Ok(()) });
         }
-        let child = cmd.spawn()?;
+        let child = crate::sys::spawn_retrying(&mut cmd)?;
         drop(cmd); // closes our copies of the write end, so the reader sees EOF when the child is gone
         Ok((child, reader))
     }

@@ -198,6 +198,8 @@ impl BrewcatApp {
         {
             let marks = &self.mcp.marks;
             ui.push_id("mcp-presets", |ui| {
+                ui.style_mut().interaction.selectable_labels = false; // the whole row is the click target
+                let ctx = ui.ctx().clone();
                 TableBuilder::new(ui)
                     .striped(true)
                     .resizable(true)
@@ -231,7 +233,11 @@ impl BrewcatApp {
                             row.col(|ui| {
                                 ui.add(egui::Label::new(p.desc).truncate());
                             });
-                            if row.response().clicked() {
+                            let response = row.response();
+                            if response.hovered() {
+                                ctx.set_cursor_icon(egui::CursorIcon::PointingHand);
+                            }
+                            if response.clicked() {
                                 picked = Some(i);
                             }
                         });

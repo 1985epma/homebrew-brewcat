@@ -418,7 +418,7 @@ struct Cancelled;
 fn run_brew_foreground(brew: &str, args: &[String]) -> Result<i32, Cancelled> {
     let argv = brewenv::brew_command(brew, args);
     let Some((prog, rest)) = argv.split_first() else { return Ok(1) };
-    let mut child = match Command::new(prog).args(rest).spawn() {
+    let mut child = match sys::spawn_retrying(Command::new(prog).args(rest)) {
         Ok(c) => c,
         Err(e) => {
             eprintln!("brewcat: cannot run {prog}: {e}");

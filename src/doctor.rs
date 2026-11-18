@@ -357,10 +357,9 @@ mod tests {
 
     #[test]
     fn redaction_replaces_paths_user_and_host() {
-        let text =
-            "3.9 (/home/zelda-secret-user/venv/bin/python) cd /home/zelda-secret-user && fix zelda-secret-user on hyrule-castle-host";
+        let text = "2.45 (/home/zelda-secret-user/bin/git) cd /home/zelda-secret-user && fix zelda-secret-user on hyrule-castle-host";
         let out = redactor().redact(text);
-        assert_eq!(out, "3.9 (~/venv/bin/python) cd ~ && fix <user> on <host>");
+        assert_eq!(out, "2.45 (~/bin/git) cd ~ && fix <user> on <host>");
     }
 
     #[test]
@@ -386,7 +385,7 @@ mod tests {
     fn report_has_versions_checks_and_no_secrets() {
         let checks = vec![
             check("homebrew", Status::Fail, "brew not found", "Install Homebrew from https://brew.sh"),
-            check("python", Status::Ok, "/home/zelda-secret-user/bin on hyrule-castle-host", "cd /home/zelda-secret-user"),
+            check("git", Status::Ok, "/home/zelda-secret-user/bin on hyrule-castle-host", "cd /home/zelda-secret-user"),
         ];
         let text = render_report(&checks, "not found", &redactor());
         assert!(text.starts_with("### brewcat diagnostics"));

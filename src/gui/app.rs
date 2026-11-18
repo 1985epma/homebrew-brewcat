@@ -638,6 +638,18 @@ impl BrewcatApp {
         {
             self.answer_front(answer);
         }
+        // A click or a key press changes what the panels drawn BEFORE the table or the buttons show (the details of the
+        // selected row, the highlighted category, "Add to list"/"Remove from list"). Draw once more right away, or
+        // the screen would keep showing the old state until the mouse moves again.
+        if ctx.input(|i| {
+            i.pointer.any_pressed()
+                || i.pointer.any_released()
+                || i.events
+                    .iter()
+                    .any(|e| matches!(e, egui::Event::Key { pressed: true, .. } | egui::Event::Text(_) | egui::Event::Paste(_)))
+        }) {
+            ctx.request_repaint();
+        }
     }
 
     fn top_bar(&mut self, ui: &mut egui::Ui) {
@@ -760,52 +772,61 @@ impl BrewcatApp {
         let green = if ui.visuals().dark_mode { Color32::from_rgb(0x66, 0xbb, 0x6a) } else { Color32::from_rgb(0x2e, 0x7d, 0x32) };
         let (mut clicked, mut double): (Option<String>, bool) = (None, false);
         let rows: &[Row] = &self.model.rows;
-        TableBuilder::new(ui)
-            .id_salt("packages")
-            .striped(true)
-            .resizable(true)
-            .sense(Sense::click())
-            .column(Column::exact(34.0))
-            .column(Column::initial(170.0).at_least(80.0).clip(true))
-            .column(Column::initial(66.0).at_least(40.0).clip(true))
-            .column(Column::initial(150.0).at_least(60.0).clip(true))
-            .column(Column::remainder().at_least(120.0).clip(true))
-            .header(24.0, |mut header| {
-                for title in ["", "Package", kind_header, "Category", "Description"] {
-                    header.col(|ui| {
-                        ui.strong(title);
-                    });
-                }
-            })
-            .body(|body| {
-                body.rows(24.0, rows.len(), |mut row| {
-                    let r = &rows[row.index()];
-                    row.set_selected(selected.as_deref() == Some(r.obj.id().as_str()));
-                    let text = |s: &str| if r.installed { RichText::new(s).color(green) } else { RichText::new(s) };
-                    row.col(|ui| {
-                        ui.label(text(&r.mark));
-                    });
-                    row.col(|ui| {
-                        ui.add(egui::Label::new(text(&r.name)).truncate());
-                    });
-                    row.col(|ui| {
-                        ui.add(egui::Label::new(text(&r.kind)).truncate());
-                    });
-                    row.col(|ui| {
-                        ui.add(egui::Label::new(text(&r.category)).truncate());
-                    });
-                    row.col(|ui| {
-                        ui.add(egui::Label::new(text(&r.desc)).truncate());
-                    });
-                    let response = row.response();
-                    if response.clicked() {
-                        clicked = Some(r.obj.id());
+        let ctx = ui.ctx().clone();
+        ui.scope(|ui| {
+            // The whole row is the click target: selectable text would take the click (and start a text selection on
+            // drag) whenever the pointer is over a name or a description.
+            ui.style_mut().interaction.selectable_labels = false;
+            TableBuilder::new(ui)
+                .id_salt("packages")
+                .striped(true)
+                .resizable(true)
+                .sense(Sense::click())
+                .column(Column::exact(34.0))
+                .column(Column::initial(170.0).at_least(80.0).clip(true))
+                .column(Column::initial(66.0).at_least(40.0).clip(true))
+                .column(Column::initial(150.0).at_least(60.0).clip(true))
+                .column(Column::remainder().at_least(120.0).clip(true))
+                .header(24.0, |mut header| {
+                    for title in ["", "Package", kind_header, "Category", "Description"] {
+                        header.col(|ui| {
+                            ui.strong(title);
+                        });
                     }
-                    if response.double_clicked() {
-                        double = true;
-                    }
+                })
+                .body(|body| {
+                    body.rows(24.0, rows.len(), |mut row| {
+                        let r = &rows[row.index()];
+                        row.set_selected(selected.as_deref() == Some(r.obj.id().as_str()));
+                        let text = |s: &str| if r.installed { RichText::new(s).color(green) } else { RichText::new(s) };
+                        row.col(|ui| {
+                            ui.label(text(&r.mark));
+                        });
+                        row.col(|ui| {
+                            ui.add(egui::Label::new(text(&r.name)).truncate());
+                        });
+                        row.col(|ui| {
+                            ui.add(egui::Label::new(text(&r.kind)).truncate());
+                        });
+                        row.col(|ui| {
+                            ui.add(egui::Label::new(text(&r.category)).truncate());
+                        });
+                        row.col(|ui| {
+                            ui.add(egui::Label::new(text(&r.desc)).truncate());
+                        });
+                        let response = row.response();
+                        if response.hovered() {
+                            ctx.set_cursor_icon(egui::CursorIcon::PointingHand);
+                        }
+                        if response.clicked() {
+                            clicked = Some(r.obj.id());
+                        }
+                        if response.double_clicked() {
+                            double = true;
+                        }
+                    });
                 });
-            });
+        });
         if let Some(id) = clicked {
             self.model.selected = Some(id);
         }

@@ -5,7 +5,7 @@ use std::io::{self, Read};
 use std::os::unix::fs::PermissionsExt;
 use std::os::unix::process::{CommandExt, ExitStatusExt};
 use std::path::{Path, PathBuf};
-use std::process::{Command, ExitStatus, Stdio};
+use std::process::{Child, Command, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -80,9 +80,25 @@ pub struct Captured {
     pub stderr: String,
 }
 
-/// Exit code of `status` the way a shell and Python's subprocess report it: the code, or `-signal`.
+/// Exit code of `status` the way a shell reports it: the code, or `-signal`.
 pub fn exit_code(status: ExitStatus) -> i32 {
     status.code().unwrap_or_else(|| -status.signal().unwrap_or(1))
+}
+
+/// Spawn `cmd`, trying again for a moment when the system answers "text file busy" (ETXTBSY). That happens when the
+/// program was written an instant ago and another thread's `fork` still holds a copy of the file's write handle
+/// until its own `exec`; it clears within milliseconds.
+pub fn spawn_retrying(cmd: &mut Command) -> io::Result<Child> {
+    let mut tries = 0;
+    loop {
+        match cmd.spawn() {
+            Err(e) if e.kind() == io::ErrorKind::ExecutableFileBusy && tries < 40 => {
+                tries += 1;
+                thread::sleep(Duration::from_millis(25));
+            }
+            other => return other,
+        }
+    }
 }
 
 /// Run `argv` to completion, capturing stdout and stderr. stdin is closed. `envs` are added to the inherited
@@ -91,14 +107,9 @@ pub fn exit_code(status: ExitStatus) -> i32 {
 /// when the command cannot be started.
 pub fn run_capture(argv: &[String], envs: &[(&str, &str)], timeout: Duration) -> io::Result<Captured> {
     let (prog, args) = argv.split_first().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "empty command"))?;
-    let mut child = Command::new(prog)
-        .args(args)
-        .envs(envs.iter().copied())
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .process_group(0) // its own group, so a timeout can stop what the command spawned too
-        .spawn()?;
+    let mut cmd = Command::new(prog);
+    cmd.args(args).envs(envs.iter().copied()).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).process_group(0); // its own group, so a timeout can stop what the command spawned too
+    let mut child = spawn_retrying(&mut cmd)?;
     let reader = |mut pipe: Box<dyn Read + Send>| {
         thread::spawn(move || {
             let mut buf = Vec::new();
@@ -209,6 +220,32 @@ mod tests {
     fn signal_exit_is_negative() {
         let r = run_capture(&argv(&["sh", "-c", "kill -9 $$"]), &[], Duration::from_secs(10)).unwrap();
         assert_eq!(r.code, -9);
+    }
+
+    #[test]
+    fn spawn_waits_while_the_program_is_still_open_for_writing() {
+        use std::io::Write;
+        // Running a file that is still open for writing fails with ETXTBSY ("text file busy"); it must be retried.
+        let dir = tempfile::tempdir().unwrap();
+        let script = dir.path().join("tool");
+        let mut file = std::fs::File::create(&script).unwrap();
+        file.write_all(b"#!/bin/sh\necho ok\n").unwrap();
+        std::fs::set_permissions(&script, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+        let closer = thread::spawn(move || {
+            thread::sleep(Duration::from_millis(200));
+            drop(file);
+        });
+        let child = spawn_retrying(Command::new(&script).stdout(Stdio::piped())).unwrap();
+        let out = child.wait_with_output().unwrap();
+        closer.join().unwrap();
+        assert_eq!(String::from_utf8_lossy(&out.stdout), "ok\n");
+    }
+
+    #[test]
+    fn spawn_gives_up_on_real_errors_at_once() {
+        let start = Instant::now();
+        assert!(spawn_retrying(&mut Command::new("/no/such/program")).is_err());
+        assert!(start.elapsed() < Duration::from_secs(1));
     }
 
     #[test]
