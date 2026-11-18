@@ -21,7 +21,8 @@ USAGE
 PACKAGES TAB
   Profile     All, Dev, SRE/Cloud, QA, Data Scientist, Data Engineer, Support & Network,
               Security, Design (web/video/graphics), DJ/Music, Office, Vendors (Microsoft,
-              Oracle, Apple, Open Source, Red Hat, JetBrains), 117-labs (products by 1985epma:
+              Google, Amazon, Anthropic, Cursor, Kiro, xAI, Oracle, IBM, SAP, SUSE, Red Hat,
+              HashiCorp, Apple, JetBrains, Open Source), 117-labs (products by 1985epma:
               k8scli, epma-windows-usb-creator, 117terminal, epma-system-data) or
               Gamer. It filters the catalog, categories, kits and suggestions.
   Platform    mac or linux. Casks (GUI apps) exist only on macOS.

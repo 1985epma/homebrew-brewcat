@@ -37,7 +37,7 @@ pub const PROFILES: [(&str, Option<&str>); 14] = [
     ("Design (web, video, graphics)", Some(catalog::DESIGN)),
     ("DJ / Music", Some(catalog::DJ)),
     ("Office", Some(catalog::OFFICE)),
-    ("Vendors (Microsoft, Oracle, Apple, Open Source, Red Hat, JetBrains)", Some(catalog::VENDOR)),
+    ("Vendors (Microsoft, Google, Amazon, Anthropic, Oracle, Apple, IBM, Red Hat…)", Some(catalog::VENDOR)),
     ("Gamer", Some(catalog::GAMER)),
 ];
 

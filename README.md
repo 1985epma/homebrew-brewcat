@@ -24,7 +24,8 @@ bundle, and prints how to fix it.
 ## What it does
 
 - Categories, search, and filters by platform and by profile: Dev, SRE/Cloud, QA, Data, Network, Security, Design, DJ,
-  Office, Vendors, 117-labs and Gamer
+  Office, Vendors (Microsoft, Google, Amazon, Anthropic, Cursor, Kiro, xAI, Oracle, IBM, SAP, SUSE, Red Hat, HashiCorp,
+  Apple, JetBrains…), 117-labs and Gamer
 - ✨ Suggestions based on what you already have installed
 - 🧪 **117-labs** profile: products built by 1985epma (`k8scli`, `epma-windows-usb-creator`, `117terminal`, `epma-system-data`), installable in one click
 - 🏗️ SRE/Cloud profile: Terraform, AWS, Google Cloud, Azure, Railway, Kubernetes, observability
